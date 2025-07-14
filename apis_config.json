@@ -1,0 +1,92 @@
+{
+    "apis": [
+        {
+            "name": "fetch_cities_api",
+            "endpoint": "https://api.medicalsystem.com/v1/cities",
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer <token>",
+                "Content-Type": "application/json"
+            },
+            "parameters": {},
+            "response": {
+                "status_code": 200,
+                "body": [
+                    {
+                        "id": 1,
+                        "name": "New York"
+                    },
+                    {
+                        "id": 2,
+                        "name": "Los Angeles"
+                    },
+                    {
+                        "id": 3,
+                        "name": "Chicago"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "fetch_branches_api",
+            "endpoint": "https://api.medicalsystem.com/v1/branches",
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer <token>",
+                "Content-Type": "application/json"
+            },
+            "parameters": {
+                "city_id": "integer"
+            },
+            "response": {
+                "status_code": 200,
+                "body": [
+                    {
+                        "id": "integer",
+                        "name": "string"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "fetch_available_times_api",
+            "endpoint": "https://api.medicalsystem.com/v1/times",
+            "method": "GET",
+            "headers": {
+                "Authorization": "Bearer <token>",
+                "Content-Type": "application/json"
+            },
+            "parameters": {
+                "branch_id": "integer"
+            },
+            "response": {
+                "status_code": 200,
+                "body": [
+                    "string"
+                ]
+            }
+        },
+        {
+            "name": "create_appointment_api",
+            "endpoint": "https://api.medicalsystem.com/v1/appointments",
+            "method": "POST",
+            "headers": {
+                "Authorization": "Bearer <token>",
+                "Content-Type": "application/json"
+            },
+            "parameters": {
+                "id_number": "string",
+                "city_id": "integer",
+                "branch_id": "integer",
+                "date_time": "string"
+            },
+            "response": {
+                "status_code": 201,
+                "body": {
+                    "status": "string",
+                    "appointment_id": "string"
+                }
+            }
+        }
+    ]
+}

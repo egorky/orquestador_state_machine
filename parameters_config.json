@@ -1,0 +1,47 @@
+{
+    "parameters": [
+        {
+            "name": "id_number",
+            "question": "Please provide your ID number.",
+            "dependencies": [],
+            "api_validation": null,
+            "ai_prompt": "Extract the ID number from the user's response. Return as {'id_number': <number>}."
+        },
+        {
+            "name": "city",
+            "question": "Which city would you like to schedule your appointment in?",
+            "dependencies": [],
+            "api_validation": {
+                "api": "fetch_cities_api",
+                "output_key": "cities"
+            },
+            "ai_prompt": "Extract the city name from the user's response and match it to one of the provided cities. Return as {'city_id': <id>, 'city_name': <name>}."
+        },
+        {
+            "name": "branch",
+            "question": "Which branch in {city_name} would you like to visit?",
+            "dependencies": ["city"],
+            "api_validation": {
+                "api": "fetch_branches_api",
+                "input_key": "city_id",
+                "output_key": "branches"
+            },
+            "ai_prompt": "Extract the branch name from the user's response and match it to one of the provided branches. Return as {'branch_id': <id>, 'branch_name': <name>}."
+        },
+        {
+            "name": "date_time",
+            "question": "Please choose a date and time from the following options: {available_times}.",
+            "dependencies": ["branch"],
+            "api_validation": {
+                "api": "fetch_available_times_api",
+                "input_key": "branch_id",
+                "output_key": "available_times"
+            },
+            "ai_prompt": "Extract the date and time from the user's response and match it to one of the provided times. Return as {'date_time': <time>}."
+        }
+    ],
+    "final_action": {
+        "api": "create_appointment_api",
+        "required_parameters": ["id_number", "city", "branch", "date_time"]
+    }
+}
