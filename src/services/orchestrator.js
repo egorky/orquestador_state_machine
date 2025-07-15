@@ -103,11 +103,15 @@ class ConversationOrchestrator {
                 endpoint += `?${new URLSearchParams(inputData)}`;
             }
 
+            console.log(`Calling API ${apiName} at ${endpoint} with options:`, JSON.stringify(options, null, 2));
             const response = await fetch(endpoint, options);
+            const responseData = await response.json();
+            console.log(`Response from API ${apiName}:`, JSON.stringify(responseData, null, 2));
+
             if (![200, 201].includes(response.status)) {
-                throw new Error(`API call failed with status ${response.status}: ${await response.text()}`);
+                throw new Error(`API call failed with status ${response.status}: ${JSON.stringify(responseData)}`);
             }
-            return await response.json();
+            return responseData;
         } catch (error) {
             console.error(`API call to ${apiName} failed: ${error.message}`);
             return {};
@@ -195,9 +199,19 @@ class ConversationOrchestrator {
             return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
         }
 
+        // Pre-fetch data for the next question if needed
+        const nextSequence = this.executionSequences.find(seq => seq.parameter === nextParam.name);
+        if (nextSequence && nextSequence.steps[0].tool === 'api_call') {
+            await this.processStep(nextSequence.steps[0], '', this.state.context);
+        }
+
         let question = nextParam.question;
         if (question.includes("{city_name}")) {
             question = question.replace("{city_name}", this.state.context.city_name || "la ciudad");
+        }
+        if (question.includes("{available_times}")) {
+            const times = this.state.context.available_times || [];
+            question = question.replace("{available_times}", times.join(", ") || "no hay horarios disponibles");
         }
 
         return { next_prompt: question, collected_params: this.state.context };
