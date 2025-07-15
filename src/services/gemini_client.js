@@ -15,20 +15,30 @@ async function extractParameter(prompt, textToAnalyze, context = {}) {
     Responde únicamente con un objeto JSON.
   `;
 
+  console.log("Enviando a Gemini:", JSON.stringify({ model: "gemini-1.5-flash", contents: fullPrompt }, null, 2));
+
   try {
     const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
         contents: fullPrompt,
     });
 
-    const text = response.response.text();
+    console.log("Respuesta de Gemini (raw):", JSON.stringify(response, null, 2));
+
+    const text = response.text;
+    console.log("Texto extraído de Gemini:", text);
+
     // A veces, Gemini devuelve el JSON dentro de un bloque de código markdown.
     // Esta expresión regular lo extrae.
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
     if (jsonMatch && jsonMatch[1]) {
-        return JSON.parse(jsonMatch[1].trim());
+        const parsedJson = JSON.parse(jsonMatch[1].trim());
+        console.log("JSON parseado (from markdown):", parsedJson);
+        return parsedJson;
     }
-    return JSON.parse(text.trim());
+    const parsedJson = JSON.parse(text.trim());
+    console.log("JSON parseado:", parsedJson);
+    return parsedJson;
   } catch (error) {
     console.error("Error al llamar a la API de Gemini:", error);
     return null;
