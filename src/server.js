@@ -53,5 +53,5 @@ if (ariEnabled) {
 }
 
 if (process.env.MOCK_API_ENABLED === 'true') {
-    require('./mock_api');
+    require('../demo/mock_api');
 }
