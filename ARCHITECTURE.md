@@ -6,12 +6,12 @@ Este documento describe la arquitectura del Orquestador de Conversaciones Inteli
 
 El sistema se compone de los siguientes módulos principales:
 
--   **Servidor (API/ARI)**: El punto de entrada para las interacciones. Puede ser un servidor API REST, un cliente ARI de Asterisk, o ambos.
+-   **Servidor (API/ARI)**: El punto de entrada para las interacciones.
 -   **Orquestador**: El cerebro del sistema. Gestiona el flujo de la conversación, el estado y la lógica de recolección de parámetros.
 -   **Cliente de Redis**: Se encarga de la persistencia del estado de la conversación.
--   **Cliente de Gemini**: Interactúa con la API de Google Gemini para el procesamiento de lenguaje natural.
--   **Archivos de Configuración**: Definen el comportamiento del orquestador, incluyendo los flujos, parámetros, APIs y reglas de validación.
--   **API Simulada**: Un servidor Express que simula las APIs externas para facilitar las pruebas.
+-   **Cliente de Gemini**: Interactúa con la API de Google Gemini.
+-   **Archivos de Configuración**: Definen el comportamiento del orquestador.
+-   **API Simulada**: Un servidor para pruebas.
 
 ## Diagrama de Flujo de Datos
 
@@ -52,19 +52,24 @@ graph TD
         C[Servidor Principal]
         D[Orquestador]
         E[Archivos de Configuración]
+        E --> F[flows_config.json]
+        E --> G[parameters_config.json]
+        E --> H[apis_config.json]
+        E --> I[execution_order_config.json]
+        E --> J[validations_config.json]
     end
 
     subgraph "Servicios Externos"
-        F[Cliente de Redis]
-        G[Cliente de Gemini]
-        H[API Simulada]
+        K[Cliente de Redis]
+        L[Cliente de Gemini]
+        M[API Simulada]
     end
 
     A --> C
     B --> C
     C --> D
     D --> E
-    D --> F
-    D --> G
-    D --> H
+    D --> K
+    D --> L
+    D --> M
 ```

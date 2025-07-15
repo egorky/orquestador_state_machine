@@ -19,6 +19,7 @@ class ConversationOrchestrator {
         this.apisConfig = null;
         this.validationsConfig = null;
         this.executionSequences = null;
+        this.flowsConfig = null;
         this.finalAction = null;
     }
 
@@ -34,6 +35,8 @@ class ConversationOrchestrator {
             this.state = {
                 collected: {},
                 context: {},
+                currentFlow: 'scheduling', // Default flow
+                currentParameter: null,
             };
         }
 
@@ -43,9 +46,14 @@ class ConversationOrchestrator {
         this.apisConfig = JSON.parse(await fs.readFile(path.join(configPath, "apis_config.json"), "utf8"));
         this.validationsConfig = JSON.parse(await fs.readFile(path.join(configPath, "validations_config.json"), "utf8"));
         this.executionSequences = JSON.parse(await fs.readFile(path.join(configPath, "execution_order_config.json"), "utf8")).execution_sequences;
+        this.flowsConfig = JSON.parse(await fs.readFile(path.join(configPath, "flows_config.json"), "utf8"));
 
         this.parameters = this.parametersConfig.parameters;
         this.finalAction = this.parametersConfig.final_action;
+
+        if (!this.state.currentParameter) {
+            this.state.currentParameter = this.flowsConfig.flows[this.state.currentFlow].initial_parameter;
+        }
     }
 
     /**
@@ -56,20 +64,14 @@ class ConversationOrchestrator {
     }
 
     /**
-     * @description Determines the next parameter to be collected based on the current state and dependencies.
+     * @description Determines the next parameter to be collected based on the current flow.
      * @returns {object|null} The next parameter object or null if all parameters are collected.
      */
     getNextParameter() {
-        for (const param of this.parameters) {
-            if (!this.state.collected.hasOwnProperty(param.name)) {
-                const dependencies = param.dependencies || [];
-                const dependenciesMet = dependencies.every(dep => this.state.collected.hasOwnProperty(dep));
-                if (dependenciesMet) {
-                    return param;
-                }
-            }
+        if (!this.state.currentParameter) {
+            return null;
         }
-        return null;
+        return this.parameters.find(p => p.name === this.state.currentParameter);
     }
 
     /**
@@ -132,7 +134,7 @@ class ConversationOrchestrator {
 
         try {
             const mockApiPort = process.env.MOCK_API_PORT || 3001;
-            let endpoint = api.endpoint.replace("https://api.medicalsystem.com/v1", `http://localhost:${mockApiPort}`);
+            let endpoint = api.endpoint.replace("http://127.0.0.1:3001", `http://127.0.0.1:${mockApiPort}`);
 
             const options = {
                 method: api.method,
@@ -186,6 +188,14 @@ class ConversationOrchestrator {
                 if (!validationResult.valid) {
                     return { error: validationResult.message };
                 }
+            }
+        } else if (step.tool === 'decision') {
+            const value = this.state.context[step.on];
+            const decisionCase = step.cases.find(c => c.equals === value);
+            if (decisionCase) {
+                this.state.currentParameter = decisionCase.next_parameter;
+            } else {
+                this.state.currentParameter = step.default;
             }
         }
         return context;
@@ -242,11 +252,11 @@ class ConversationOrchestrator {
             Object.assign(this.state.context, extractedData);
         }
 
-        await this.saveState();
+        // Determine the next parameter from the flow
+        const currentFlowConfig = this.flowsConfig.flows[this.state.currentFlow];
+        this.state.currentParameter = currentFlowConfig.parameters[paramToProcess.name].next_parameter;
 
-        if (this.finalAction.required_parameters.every(p => this.state.collected.hasOwnProperty(p))) {
-            return { final_message: "Cita agendada exitosamente (simulado)." };
-        }
+        await this.saveState();
 
         const nextParam = this.getNextParameter();
         if (!nextParam) {

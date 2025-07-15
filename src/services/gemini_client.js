@@ -5,6 +5,15 @@ const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 /**
+ * @description Replaces dynamic placeholders in a string with their actual values.
+ * @param {string} text - The string containing placeholders.
+ * @returns {string} The string with placeholders replaced.
+ */
+function replaceDynamicPlaceholders(text) {
+    return text.replace(/{{CURRENT_DATETIME}}/g, new Date().toISOString());
+}
+
+/**
  * @description Extracts a parameter from a user's response using the Gemini API.
  * @param {string} prompt - The prompt to guide the AI.
  * @param {string} textToAnalyze - The user's text to be analyzed.
@@ -13,8 +22,10 @@ const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
  */
 async function extractParameter(prompt, textToAnalyze, context = {}) {
 
+  const processedPrompt = replaceDynamicPlaceholders(prompt);
+
   const fullPrompt = `
-    ${prompt}
+    ${processedPrompt}
 
     Texto a analizar: "${textToAnalyze}"
 
