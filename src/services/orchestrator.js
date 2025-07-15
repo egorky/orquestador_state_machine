@@ -23,7 +23,6 @@ class ConversationOrchestrator {
         } else {
             this.state = {
                 collected: {},
-                currentFlow: "scheduling",
                 context: {},
             };
         }
@@ -67,6 +66,10 @@ class ConversationOrchestrator {
             } else if (rule.type === "in_list") {
                 const sourceKey = Object.keys(context).find(k => k.includes(rule.source));
                 const sourceData = context[sourceKey] || [];
+                if (!Array.isArray(sourceData)) {
+                    console.log(`Validation failed: source data for ${rule.source} is not an array.`);
+                    return { valid: false, message: "Error interno de validación." };
+                }
                 const key = rule.key;
                 const value = extracted[key];
 
@@ -96,7 +99,7 @@ class ConversationOrchestrator {
 
             if (api.method === "POST") {
                 options.body = JSON.stringify(inputData);
-            } else if (api.method === "GET" && Object.keys(inputData).length) {
+            } else if (api.method === "GET" && Object.keys(inputData).length > 0) {
                 endpoint += `?${new URLSearchParams(inputData)}`;
             }
 
@@ -114,7 +117,7 @@ class ConversationOrchestrator {
     async processStep(step, response, context) {
         if (step.tool === "api_call") {
             const inputData = step.input_keys ? Object.fromEntries(
-                step.input_keys.map(key => [key, this.state.collected[key]])
+                step.input_keys.map(key => [key, this.state.context[key]])
             ) : {};
             const result = await this.callApi(step.api, inputData);
             context[step.output_key] = result;
