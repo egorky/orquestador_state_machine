@@ -45,9 +45,9 @@ class ConversationOrchestrator {
 
     getNextParameter() {
         for (const param of this.parameters) {
-            if (!(param.name in this.state.collected)) {
+            if (!this.state.collected.hasOwnProperty(param.name)) {
                 const dependencies = param.dependencies || [];
-                const dependenciesMet = dependencies.every(dep => dep in this.state.collected);
+                const dependenciesMet = dependencies.every(dep => this.state.collected.hasOwnProperty(dep));
                 if (dependenciesMet) {
                     return param;
                 }
@@ -120,7 +120,7 @@ class ConversationOrchestrator {
             context[step.output_key] = result;
         } else if (step.tool === "ai_extract") {
             const extracted = await geminiClient.extractParameter(step.prompt, response, context);
-            context.extracted = extracted; // <--- FIX IS HERE
+            context.extracted = extracted;
             if (!extracted) return null;
             return extracted;
         } else if (step.tool === "validate") {
@@ -138,41 +138,39 @@ class ConversationOrchestrator {
     async processUserInput(response) {
         await this.initialize();
 
-        // Intent detection can be a special first step
-        // For now, we'll focus on parameter extraction
+        const paramToProcess = this.getNextParameter();
+        if (!paramToProcess) {
+            return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
+        }
 
         let extractedData = null;
-        for (const param of this.parameters) {
-            // We only process the next parameter in line, for simplicity for now
-            if (this.getNextParameter() && param.name === this.getNextParameter().name) {
-                const sequence = this.executionSequences.find(seq => seq.parameter === param.name);
-                if (sequence) {
-                    let context = { ...this.state.context, parameter: param.name };
-                    let extractedForValidation = null;
+        const sequence = this.executionSequences.find(seq => seq.parameter === paramToProcess.name);
 
-                    for (const step of sequence.steps) {
-                        const result = await this.processStep(step, response, context);
-                        if (result && result.error) {
-                            return { next_prompt: result.error };
-                        }
-                        if (step.tool === "ai_extract") {
-                            extractedData = result;
-                            extractedForValidation = result;
-                        }
-                    }
-                     // Perform validation after AI extraction
-                    const validationStep = sequence.steps.find(s => s.tool === "validate");
-                    if (validationStep) {
-                        const validation = this.validationsConfig.validations.find(val => val.parameter === validationStep.validation);
-                        if(validation) {
-                            const validationResult = await this.applyValidation(extractedForValidation, validation.rules, context);
-                            if (!validationResult.valid) {
-                                return { next_prompt: validationResult.message };
-                            }
-                        }
+        if (sequence) {
+            let context = { ...this.state.context, parameter: paramToProcess.name };
+
+            for (const step of sequence.steps) {
+                const result = await this.processStep(step, response, context);
+
+                if (result && result.error) {
+                    return { next_prompt: result.error };
+                }
+
+                if (step.tool === "ai_extract") {
+                    extractedData = result;
+                }
+            }
+
+            // Perform validation after AI extraction
+            const validationStep = sequence.steps.find(s => s.tool === "validate");
+            if (validationStep) {
+                const validation = this.validationsConfig.validations.find(val => val.parameter === validationStep.validation);
+                if (validation) {
+                    const validationResult = await this.applyValidation(extractedData, validation.rules, context);
+                    if (!validationResult.valid) {
+                        return { next_prompt: validationResult.message };
                     }
                 }
-                break;
             }
         }
 
@@ -182,8 +180,7 @@ class ConversationOrchestrator {
 
         await this.saveState();
 
-        if (this.finalAction.required_parameters.every(p => p in this.state.collected)) {
-            // Execute final action
+        if (this.finalAction.required_parameters.every(p => this.state.collected.hasOwnProperty(p))) {
             return { final_message: "Cita agendada exitosamente (simulado)." };
         }
 
@@ -193,7 +190,6 @@ class ConversationOrchestrator {
         }
 
         let question = nextParam.question;
-        // Simple templating for now
         if (question.includes("{city_name}")) {
             question = question.replace("{city_name}", this.state.collected.city_name || "la ciudad");
         }
