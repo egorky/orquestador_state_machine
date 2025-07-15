@@ -1,10 +1,17 @@
 const fs = require('fs').promises;
 const path = require('path');
-const fetch = require('node-fetch');
+const fetch = 'node-fetch';
 const redisClient = require('../lib/redis_client');
 const geminiClient = require('./gemini_client');
 
+/**
+ * @class ConversationOrchestrator
+ * @description Manages the conversation flow, state, and interactions with external services.
+ */
 class ConversationOrchestrator {
+    /**
+     * @param {string} sessionId - The unique identifier for the conversation session.
+     */
     constructor(sessionId) {
         this.sessionId = sessionId;
         this.state = {};
@@ -15,6 +22,9 @@ class ConversationOrchestrator {
         this.finalAction = null;
     }
 
+    /**
+     * @description Initializes the orchestrator by loading the conversation state from Redis and all JSON configurations.
+     */
     async initialize() {
         // Load state from Redis or create a new one
         const loadedState = await redisClient.loadData(this.sessionId);
@@ -38,10 +48,17 @@ class ConversationOrchestrator {
         this.finalAction = this.parametersConfig.final_action;
     }
 
+    /**
+     * @description Saves the current conversation state to Redis.
+     */
     async saveState() {
         await redisClient.saveData(this.sessionId, this.state);
     }
 
+    /**
+     * @description Determines the next parameter to be collected based on the current state and dependencies.
+     * @returns {object|null} The next parameter object or null if all parameters are collected.
+     */
     getNextParameter() {
         for (const param of this.parameters) {
             if (!this.state.collected.hasOwnProperty(param.name)) {
@@ -55,6 +72,13 @@ class ConversationOrchestrator {
         return null;
     }
 
+    /**
+     * @description Applies validation rules to the extracted data.
+     * @param {object} extracted - The data extracted by the AI.
+     * @param {Array<object>} rules - The validation rules to apply.
+     * @param {object} context - The current conversation context.
+     * @returns {{valid: boolean, message?: string}} The validation result.
+     */
     async applyValidation(extracted, rules, context) {
         for (const rule of rules) {
             if (rule.type === "regex") {
@@ -94,6 +118,12 @@ class ConversationOrchestrator {
         return { valid: true };
     }
 
+    /**
+     * @description Calls an external API.
+     * @param {string} apiName - The name of the API to call.
+     * @param {object} inputData - The data to send to the API.
+     * @returns {Promise<object>} The JSON response from the API.
+     */
     async callApi(apiName, inputData) {
         const api = this.apisConfig.apis.find(a => a.name === apiName);
         if (!api) {
@@ -130,6 +160,13 @@ class ConversationOrchestrator {
         }
     }
 
+    /**
+     * @description Processes a single step in the execution sequence for a parameter.
+     * @param {object} step - The step to process.
+     * @param {string} response - The user's response.
+     * @param {object} context - The current conversation context.
+     * @returns {Promise<object>} The updated context or an error object.
+     */
     async processStep(step, response, context) {
         if (step.tool === "api_call") {
             const inputData = step.input_keys ? Object.fromEntries(
@@ -154,6 +191,11 @@ class ConversationOrchestrator {
         return context;
     }
 
+    /**
+     * @description Processes the user's input, orchestrating the collection of the next parameter.
+     * @param {string} response - The user's input.
+     * @returns {Promise<object>} An object containing the next prompt or the final message.
+     */
     async processUserInput(response) {
         await this.initialize();
 
@@ -229,6 +271,10 @@ class ConversationOrchestrator {
         return { next_prompt: question, collected_params: this.state.context };
     }
 
+    /**
+     * @description Starts a new conversation and returns the first prompt.
+     * @returns {Promise<object>} An object containing the first prompt.
+     */
     async startConversation() {
         await this.initialize();
         const nextParam = this.getNextParameter();

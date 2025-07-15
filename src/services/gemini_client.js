@@ -2,7 +2,15 @@ const { GoogleGenAI } = require("@google/genai");
 require('dotenv').config();
 
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
+const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
+/**
+ * @description Extracts a parameter from a user's response using the Gemini API.
+ * @param {string} prompt - The prompt to guide the AI.
+ * @param {string} textToAnalyze - The user's text to be analyzed.
+ * @param {object} [context={}] - Additional context to provide to the AI.
+ * @returns {Promise<object|null>} The extracted parameter as a JSON object, or null if an error occurs.
+ */
 async function extractParameter(prompt, textToAnalyze, context = {}) {
 
   const fullPrompt = `
@@ -15,11 +23,11 @@ async function extractParameter(prompt, textToAnalyze, context = {}) {
     Responde únicamente con un objeto JSON.
   `;
 
-  console.log("Enviando a Gemini:", JSON.stringify({ model: "gemini-1.5-flash", contents: fullPrompt }, null, 2));
+  console.log("Enviando a Gemini:", JSON.stringify({ model: modelName, contents: fullPrompt }, null, 2));
 
   try {
     const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: modelName,
         contents: fullPrompt,
     });
 
