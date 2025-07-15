@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const fetch = 'node-fetch';
+const fetch = require('node-fetch');
 const redisClient = require('../lib/redis_client');
 const geminiClient = require('./gemini_client');
 
