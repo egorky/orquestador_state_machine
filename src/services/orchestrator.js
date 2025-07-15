@@ -120,6 +120,7 @@ class ConversationOrchestrator {
             context[step.output_key] = result;
         } else if (step.tool === "ai_extract") {
             const extracted = await geminiClient.extractParameter(step.prompt, response, context);
+            context.extracted = extracted; // <--- FIX IS HERE
             if (!extracted) return null;
             return extracted;
         } else if (step.tool === "validate") {
