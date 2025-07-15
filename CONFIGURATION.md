@@ -31,17 +31,26 @@ Este archivo define las APIs externas que el orquestador puede llamar.
     -   `method`: El método HTTP a utilizar (`GET`, `POST`, etc.).
     -   `headers`: Un objeto con las cabeceras a enviar en la petición.
 
+## `scripts_config.json`
+
+Este archivo define pequeños scripts de JavaScript que pueden ser ejecutados por el orquestador.
+
+-   `scripts`: Un array de objetos, donde cada objeto representa un script.
+    -   `name`: El nombre único del script.
+    -   `function_body`: El cuerpo de la función de JavaScript en formato de string.
+
 ## `execution_order_config.json`
 
-Este archivo define la secuencia de pasos a seguir para cada parámetro.
+Este archivo es crucial, ya que define la secuencia de pasos a seguir para cada parámetro.
 
 -   `execution_sequences`: Un array de objetos, donde cada objeto define la secuencia para un parámetro.
     -   `parameter`: El nombre del parámetro al que se aplica esta secuencia.
     -   `steps`: Un array de objetos, donde cada objeto es un paso a ejecutar en orden.
-        -   `tool`: La herramienta a utilizar. Puede ser `api_call`, `ai_extract`, `validate`, o `decision`.
+        -   `tool`: La herramienta a utilizar. Puede ser `api_call`, `ai_extract`, `validate`, `decision`, o `script`.
         -   `api` (si `tool` es `api_call`): El nombre de la API a llamar.
-        -   `input_keys` (si `tool` es `api_call`): Un array de claves del contexto que se enviarán como parámetros a la API.
-        -   `output_key` (si `tool` es `api_call`): La clave bajo la cual se guardará la respuesta de la API en el contexto.
+        -   `script` (si `tool` es `script`): El nombre del script a ejecutar.
+        -   `input_keys` (si `tool` es `api_call` o `script`): Un array de claves del contexto que se enviarán como parámetros a la API o script.
+        -   `output_key` (si `tool` es `api_call` o `script`): La clave bajo la cual se guardará la respuesta de la API o script en el contexto.
         -   `prompt` (si `tool` es `ai_extract`): El prompt que se enviará a la IA.
         -   `validation` (si `tool` es `validate`): El nombre del parámetro de validación a utilizar.
         -   `on` (si `tool` es `decision`): La clave del contexto sobre la cual se tomará la decisión.

@@ -20,6 +20,7 @@ class ConversationOrchestrator {
         this.validationsConfig = null;
         this.executionSequences = null;
         this.flowsConfig = null;
+        this.scriptsConfig = null;
         this.finalAction = null;
     }
 
@@ -47,6 +48,7 @@ class ConversationOrchestrator {
         this.validationsConfig = JSON.parse(await fs.readFile(path.join(configPath, "validations_config.json"), "utf8"));
         this.executionSequences = JSON.parse(await fs.readFile(path.join(configPath, "execution_order_config.json"), "utf8")).execution_sequences;
         this.flowsConfig = JSON.parse(await fs.readFile(path.join(configPath, "flows_config.json"), "utf8"));
+        this.scriptsConfig = JSON.parse(await fs.readFile(path.join(configPath, "scripts_config.json"), "utf8"));
 
         this.parameters = this.parametersConfig.parameters;
         this.finalAction = this.parametersConfig.final_action;
@@ -196,6 +198,14 @@ class ConversationOrchestrator {
                 this.state.currentParameter = decisionCase.next_parameter;
             } else {
                 this.state.currentParameter = step.default;
+            }
+        } else if (step.tool === 'script') {
+            const script = this.scriptsConfig.scripts.find(s => s.name === step.script);
+            if (script) {
+                const args = step.input_keys.map(key => this.state.context[key]);
+                const func = new Function(...step.input_keys, script.function_body);
+                const result = func(...args);
+                context[step.output_key] = result;
             }
         }
         return context;

@@ -57,19 +57,20 @@ graph TD
         E --> H[apis_config.json]
         E --> I[execution_order_config.json]
         E --> J[validations_config.json]
+        E --> K[scripts_config.json]
     end
 
     subgraph "Servicios Externos"
-        K[Cliente de Redis]
-        L[Cliente de Gemini]
-        M[API Simulada]
+        L[Cliente de Redis]
+        M[Cliente de Gemini]
+        N[API Simulada]
     end
 
     A --> C
     B --> C
     C --> D
     D --> E
-    D --> K
     D --> L
     D --> M
+    D --> N
 ```
