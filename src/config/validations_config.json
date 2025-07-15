@@ -47,9 +47,8 @@
             "parameter": "date_time",
             "rules": [
                 {
-                    "type": "in_list",
+                    "type": "in_list_simple",
                     "source": "available_times",
-                    "key": "date_time",
                     "error_message": "La fecha y hora debe ser una de las opciones disponibles."
                 }
             ]

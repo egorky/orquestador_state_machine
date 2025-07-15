@@ -77,6 +77,18 @@ class ConversationOrchestrator {
                     console.log(`Validation failed: ${rule.error_message}`);
                     return { valid: false, message: rule.error_message };
                 }
+            } else if (rule.type === "in_list_simple") {
+                const sourceKey = Object.keys(context).find(k => k.includes(rule.source));
+                const sourceData = context[sourceKey] || [];
+                 if (!Array.isArray(sourceData)) {
+                    console.log(`Validation failed: source data for ${rule.source} is not an array.`);
+                    return { valid: false, message: "Error interno de validación." };
+                }
+                const value = Object.values(extracted)[0];
+                if (!sourceData.includes(value)) {
+                    console.log(`Validation failed: ${rule.error_message}`);
+                    return { valid: false, message: rule.error_message };
+                }
             }
         }
         return { valid: true };
