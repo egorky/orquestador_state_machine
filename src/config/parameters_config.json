@@ -1,0 +1,33 @@
+{
+    "parameters": [
+        {
+            "name": "id_number",
+            "question": "Por favor, deme su número de identificación.",
+            "dependencies": []
+        },
+        {
+            "name": "city",
+            "question": "¿En qué ciudad desea agendar su cita?",
+            "dependencies": ["id_number"]
+        },
+        {
+            "name": "branch",
+            "question": "¿En qué sucursal de {city_name} desea su cita?",
+            "dependencies": ["city"]
+        },
+        {
+            "name": "speciality",
+            "question": "¿Para qué especialidad desea su cita?",
+            "dependencies": ["branch"]
+        },
+        {
+            "name": "date_time",
+            "question": "Por favor, elija una fecha y hora de las siguientes opciones: {available_times}.",
+            "dependencies": ["speciality"]
+        }
+    ],
+    "final_action": {
+        "api": "create_appointment_api",
+        "required_parameters": ["id_number", "city", "branch", "speciality", "date_time"]
+    }
+}

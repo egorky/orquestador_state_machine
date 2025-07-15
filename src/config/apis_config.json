@@ -1,0 +1,44 @@
+{
+    "apis": [
+        {
+            "name": "fetch_cities_api",
+            "endpoint": "https://api.medicalsystem.com/v1/cities",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_branches_api",
+            "endpoint": "https://api.medicalsystem.com/v1/branches",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_specialities_api",
+            "endpoint": "https://api.medicalsystem.com/v1/specialities",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_available_times_api",
+            "endpoint": "https://api.medicalsystem.com/v1/times",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "create_appointment_api",
+            "endpoint": "https://api.medicalsystem.com/v1/appointments",
+            "method": "POST",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        }
+    ]
+}
