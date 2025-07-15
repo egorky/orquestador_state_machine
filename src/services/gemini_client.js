@@ -4,7 +4,6 @@ require('dotenv').config();
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
 
 async function extractParameter(prompt, textToAnalyze, context = {}) {
-  const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const fullPrompt = `
     ${prompt}
@@ -17,9 +16,12 @@ async function extractParameter(prompt, textToAnalyze, context = {}) {
   `;
 
   try {
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: fullPrompt,
+    });
+
+    const text = response.response.text();
     // A veces, Gemini devuelve el JSON dentro de un bloque de código markdown.
     // Esta expresión regular lo extrae.
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
