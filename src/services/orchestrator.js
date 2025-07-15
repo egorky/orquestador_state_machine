@@ -175,7 +175,10 @@ class ConversationOrchestrator {
         }
 
         if (extractedData) {
-            Object.assign(this.state.collected, extractedData);
+            // Mark the parameter as collected
+            this.state.collected[paramToProcess.name] = true;
+            // Add the extracted data to the context for future steps
+            Object.assign(this.state.context, extractedData);
         }
 
         await this.saveState();
@@ -191,10 +194,10 @@ class ConversationOrchestrator {
 
         let question = nextParam.question;
         if (question.includes("{city_name}")) {
-            question = question.replace("{city_name}", this.state.collected.city_name || "la ciudad");
+            question = question.replace("{city_name}", this.state.context.city_name || "la ciudad");
         }
 
-        return { next_prompt: question, collected_params: this.state.collected };
+        return { next_prompt: question, collected_params: this.state.context };
     }
 
     async startConversation() {
