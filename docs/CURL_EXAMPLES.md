@@ -7,7 +7,7 @@ Estos ejemplos muestran cómo interactuar con el orquestador a través de la API
 Para iniciar una conversación, envía una solicitud POST a `/start_conversation`.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123"}' http://localhost:3000/start_conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123"}' http://localhost:3010/start_conversation
 ```
 
 **Respuesta Esperada:**
@@ -25,7 +25,7 @@ Envía la respuesta del usuario a `/conversation`. El sistema detectará la inte
 ### Ejemplo 1: Intención de Agendamiento
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar una cita"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar una cita"}' http://localhost:3010/conversation
 ```
 
 **Respuesta Esperada:**
@@ -42,7 +42,7 @@ curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session
 En este ejemplo, el usuario proporciona la ciudad y el número de identificación en la misma frase.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar en Guayaquil, mi cédula es 0987654321"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar en Guayaquil, mi cédula es 0987654321"}' http://localhost:3010/conversation
 ```
 
 **Respuesta Esperada:**
@@ -63,8 +63,10 @@ El sistema debería extraer ambos parámetros y luego preguntar por el siguiente
 
 Continúa enviando las respuestas del usuario a `/conversation` hasta que se recopilen todos los parámetros.
 
+### Paso 1: Proporcionar la Sucursal
+
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "En la Kennedy"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "En la Kennedy"}' http://localhost:3010/conversation
 ```
 
 **Respuesta Esperada:**
@@ -80,13 +82,30 @@ curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session
 }
 ```
 
-## Finalizar la Conversación
-
-Una vez que se recopilan todos los parámetros, el sistema devolverá un mensaje final.
+### Paso 2: Proporcionar la Especialidad
 
 ```bash
-# Última respuesta del usuario
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Medicina General"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Medicina General"}' http://localhost:3010/conversation
+```
+
+**Respuesta Esperada:**
+
+```json
+{
+    "next_prompt": "Por favor, elija una fecha y hora de las siguientes opciones: 2025-07-15 10:00, 2025-07-15 14:00.",
+    "collected_params": {
+        "id_number": "0987654321",
+        "city": "Guayaquil",
+        "branch": "Kennedy",
+        "speciality": "Medicina General"
+    }
+}
+```
+
+### Paso 3: Proporcionar la Fecha y Hora
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "2025-07-15 10:00"}' http://localhost:3010/conversation
 ```
 
 **Respuesta Esperada:**
@@ -98,7 +117,8 @@ curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session
         "id_number": "0987654321",
         "city": "Guayaquil",
         "branch": "Kennedy",
-        "speciality": "Medicina General"
+        "speciality": "Medicina General",
+        "date_time": "2025-07-15 10:00"
     }
 }
 ```

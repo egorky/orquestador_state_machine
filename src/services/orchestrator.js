@@ -264,6 +264,9 @@ class ConversationOrchestrator {
             const intent = await this.detectIntent(response);
             if (intent && this.flowsConfig.flows[intent]) {
                 this.state.currentFlow = intent;
+                if (intent === 'talk_to_agent') {
+                    return { final_message: "Entendido. Le transferiré con un agente humano." };
+                }
             } else {
                 // Try to extract parameters even if intent is not clear
                 const extractedParams = await this.extractAllParameters(response);
