@@ -1,0 +1,35 @@
+{
+    "flows": {
+        "scheduling": {
+            "initial_parameter": "id_number",
+            "parameters": {
+                "id_number": {
+                    "next_parameter": "city"
+                },
+                "city": {
+                    "next_parameter": "branch"
+                },
+                "branch": {
+                    "next_parameter": "speciality"
+                },
+                "speciality": {
+                    "next_parameter": "date_time"
+                },
+                "date_time": {
+                    "next_parameter": null
+                }
+            }
+        },
+        "cancellation": {
+            "initial_parameter": "appointment_id",
+            "parameters": {
+                "appointment_id": {
+                    "next_parameter": "cancellation_reason"
+                },
+                "cancellation_reason": {
+                    "next_parameter": null
+                }
+            }
+        }
+    }
+}

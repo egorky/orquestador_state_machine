@@ -1,48 +1,98 @@
-Explanation of the Implementation
-1. Orchestrator Design:
-The ConversationOrchestrator class manages the conversation state, including collected parameters, current flow, and temporary context (e.g., API results).
-It uses a JSON configuration (parameters_config.json) to define parameters, questions, dependencies, API validations, and AI prompts.
-The get_next_parameter method selects the next parameter to ask about, ensuring all dependencies are met.
-The validate_response method processes user input by:
-Fetching required data from APIs (e.g., list of cities).
-Passing the response and context to an AI/NLP system (simulated here) to extract structured data.
-The process_user_input method handles the conversation loop, checking for flow changes (e.g., transfer to human) and updating the state.
-2. JSON Configuration:
-Parameters: Each parameter has a name, question, dependencies, API validation (if needed), and AI prompt.
-API Validation: Specifies the API to call, input parameters, and output key for validation.
-AI Prompts: Define how the AI should extract data from user responses.
-Final Action: Specifies the API to call when all parameters are collected.
-3. Handling Non-linear Responses:
-The orchestrator checks if the user’s response contains any parameter (not just the expected one), allowing out-of-order inputs.
-If the user requests a flow change (e.g., “transfer to human”), the orchestrator updates the flow state and resets collected parameters.
-4. Extensibility:
-New parameters can be added to the JSON config without changing the code.
-New flows (e.g., canceling an appointment) can be added by extending the current_flow logic and adding new JSON configurations.
-5. Simulated APIs and AI:
-The implementation includes mock API functions (fetch_cities_api, fetch_branches_api, etc.) and a mock AI function (ai_extract_parameter) for demonstration.
-In a real system, replace these with actual API calls and an NLP model integration (e.g., using a service like OpenAI or a custom NLP pipeline).
-6. Async Support:
-The code uses asyncio to handle asynchronous API calls and AI processing, ensuring scalability for real-world deployments.
+# Orquestador de Conversaciones Inteligente
 
+Este proyecto implementa un orquestador de conversaciones inteligente capaz de guiar a un usuario a través de un flujo predefinido, como agendar una cita médica. El orquestador se integra con la API de Google Gemini para el procesamiento de lenguaje natural, utiliza Redis para mantener el estado de la conversación y puede ser expuesto como una API REST o un cliente ARI para Asterisk.
 
-Expected Output:
-- The orchestrator simulates a conversation, producing output like:
+## Características
 
-Bot: Please provide your ID number.
-User: My ID is 12345678
-Bot: Which city would you like to schedule your appointment in?
-User: I want to schedule in New York
-Bot: Which branch in New York would you like to visit?
-User: Downtown Clinic
-Bot: Please choose a date and time from the following options: 2025-07-15 10:00, 2025-07-15 14:00.
-User: 2025-07-15 10:00
-Bot: Appointment created successfully! Appointment ID: <uuid>
-User: Transfer to human
-Bot: Transferring you to a human agent. Please wait.
-User: Chicago
-Bot: You are in the process of being transferred to a human agent.
+- **Flujo de Conversación Configurable**: El flujo de la conversación, los parámetros a recolectar y las herramientas a utilizar se definen en archivos JSON, lo que permite una fácil personalización.
+- **Integración con Google Gemini**: Utiliza el modelo Gemini para extraer información relevante de las respuestas del usuario.
+- **Persistencia de Estado con Redis**: Guarda el estado de cada conversación en Redis, permitiendo que el sistema sea escalable y sin estado.
+- **Exposición Dual (API/ARI)**: Puede funcionar como un servidor API REST o como un cliente ARI para integrarse con una central telefónica Asterisk.
+- **API Simulada para Pruebas**: Incluye una API simulada para probar el flujo de conversación sin necesidad de servicios externos reales.
 
+## Estructura del Proyecto
 
-- For invalid inputs (e.g., “My ID is abc”), it returns validation errors like:
+```
+.
+├── .env.example
+├── package.json
+├── Readme.md
+├── src
+│   ├── config
+│   │   ├── apis_config.json
+│   │   ├── execution_order_config.json
+│   │   ├── parameters_config.json
+│   │   └── validations_config.json
+│   ├── lib
+│   │   └── redis_client.js
+│   ├── services
+│   │   ├── ari_client.js
+│   │   ├── gemini_client.js
+│   │   └── orchestrator.js
+│   ├── mock_api.js
+│   └── server.js
+└── docs
+    ├── genai.md
+    ├── genaijs.txt
+    └── README_old.md
+```
 
-Bot: ID number must be a number between 6 and 10 digits.
+## Instalación
+
+1.  Clona el repositorio:
+    ```bash
+    git clone <repository-url>
+    cd <repository-directory>
+    ```
+
+2.  Instala las dependencias:
+    ```bash
+    npm install
+    ```
+
+3.  Crea un archivo `.env` a partir del ejemplo y configúralo con tus credenciales:
+    ```bash
+    cp .env.example .env
+    ```
+    Edita el archivo `.env` con tu clave de API de Google Gemini y la configuración de Redis, API y ARI.
+
+## Uso
+
+### Ejecutar el Servidor Principal
+
+Para iniciar el servidor (que a su vez puede levantar la API, el cliente ARI y la API simulada, según la configuración en `.env`):
+
+```bash
+npm start
+```
+
+### Ejecutar la API Simulada de forma independiente
+
+Si deseas ejecutar solo la API simulada para pruebas:
+
+```bash
+npm run mock:api
+```
+
+### Probar con `curl`
+
+Puedes probar la API del orquestador utilizando `curl`.
+
+1.  **Iniciar una conversación**:
+    ```bash
+    curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123"}' http://localhost:3000/start_conversation
+    ```
+    Esto devolverá la primera pregunta del flujo.
+
+2.  **Enviar la respuesta del usuario**:
+    ```bash
+    curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Mi cédula es 0987654321"}' http://localhost:3000/conversation
+    ```
+    Esto procesará la respuesta y devolverá la siguiente pregunta o el resultado final.
+
+## Configuración
+
+-   **`src/config/parameters_config.json`**: Define los parámetros que el orquestador debe recolectar.
+-   **`src/config/apis_config.json`**: Define las APIs externas que el sistema puede llamar.
+-   **`src/config/execution_order_config.json`**: Especifica el orden de ejecución de las herramientas (API, IA, validación) para cada parámetro.
+-   **`src/config/validations_config.json`**: Define las reglas de validación para los datos extraídos.

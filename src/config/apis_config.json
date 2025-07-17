@@ -1,0 +1,44 @@
+{
+    "apis": [
+        {
+            "name": "fetch_cities_api",
+            "endpoint": "http://127.0.0.1:3001/cities",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_branches_api",
+            "endpoint": "http://127.0.0.1:3001/branches",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_specialities_api",
+            "endpoint": "http://127.0.0.1:3001/specialities",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "fetch_available_times_api",
+            "endpoint": "http://127.0.0.1:3001/times",
+            "method": "GET",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "name": "create_appointment_api",
+            "endpoint": "http://127.0.0.1:3001/appointments",
+            "method": "POST",
+            "headers": {
+                "Content-Type": "application/json"
+            }
+        }
+    ]
+}
