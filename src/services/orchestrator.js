@@ -260,10 +260,11 @@ class ConversationOrchestrator {
         await this.initialize();
 
         // If intent is not set, detect it
-        if (!this.state.currentFlow || this.state.currentFlow === 'scheduling') { // Default check
+        if (!this.state.collected.intent) {
             const intent = await this.detectIntent(response);
             if (intent && this.flowsConfig.flows[intent]) {
                 this.state.currentFlow = intent;
+                this.state.collected.intent = true; // Mark intent as collected
                 if (intent === 'talk_to_agent') {
                     return { final_message: "Entendido. Le transferiré con un agente humano." };
                 }
@@ -272,6 +273,7 @@ class ConversationOrchestrator {
                 const extractedParams = await this.extractAllParameters(response);
                 if (extractedParams && Object.keys(extractedParams).length > 0) {
                     this.state.currentFlow = 'scheduling'; // Assume scheduling if params are detected
+                    this.state.collected.intent = true; // Mark intent as collected
                 } else {
                     return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
                 }
