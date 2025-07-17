@@ -252,6 +252,32 @@ class ConversationOrchestrator {
     }
 
     /**
+     * @description Performs a lookup based on the parameter configuration.
+     * @param {string} paramName - The name of the parameter.
+     * @param {string} extractedValue - The value extracted by the AI.
+     * @param {object} lookupConfig - The lookup configuration from parameters_config.json.
+     */
+    async performLookup(paramName, extractedValue, lookupConfig) {
+        let sourceData;
+
+        if (lookupConfig.from_api) {
+            sourceData = await this.callApi(lookupConfig.from_api, {});
+            this.state.context[lookupConfig.in] = sourceData;
+        } else if (lookupConfig.from_context) {
+            sourceData = this.state.context[lookupConfig.from_context];
+        }
+
+        if (sourceData && Array.isArray(sourceData)) {
+            const matchObject = sourceData.find(item => String(item[lookupConfig.match]).toLowerCase() === String(extractedValue).toLowerCase());
+            if (matchObject) {
+                for (const key in lookupConfig.output) {
+                    this.state.context[key] = matchObject[lookupConfig.output[key]];
+                }
+            }
+        }
+    }
+
+    /**
      * @description Processes the user's input, orchestrating the collection of the next parameter.
      * @param {string} response - The user's input.
      * @returns {Promise<object>} An object containing the next prompt or the final message.
@@ -288,43 +314,24 @@ class ConversationOrchestrator {
                 if (this.parameters.find(p => p.name === paramName) && !this.state.collected[paramName]) {
                     this.state.collected[paramName] = true;
                     this.state.context[paramName] = extractedParams[paramName];
+
+                    const paramConfig = this.parameters.find(p => p.name === paramName);
+                    if (paramConfig && paramConfig.lookup) {
+                        await this.performLookup(paramName, extractedParams[paramName], paramConfig.lookup);
+                    }
                 }
             }
+        }
 
-            // --- ID Conversion and Chaining Logic ---
-            if (extractedParams.city && !this.state.context.city_id) {
-                const cities = await this.callApi('fetch_cities_api', {});
-                const cityObject = cities.find(c => c.city_name.toLowerCase() === extractedParams.city.toLowerCase());
-                if (cityObject) {
-                    this.state.context.city_id = cityObject.city_id;
-                }
-            }
-
-            if (this.state.context.city_id && !this.state.context.branches) {
-                this.state.context.branches = await this.callApi('fetch_branches_api', { city_id: this.state.context.city_id });
-            }
-
-            if (extractedParams.branch && this.state.context.branches && !this.state.context.branch_id) {
-                const branchObject = this.state.context.branches.find(b => b.branch_name.toLowerCase() === extractedParams.branch.toLowerCase());
-                if (branchObject) {
-                    this.state.context.branch_id = branchObject.branch_id;
-                }
-            }
-
-            if (this.state.context.branch_id && !this.state.context.specialities) {
-                this.state.context.specialities = await this.callApi('fetch_specialities_api', { branch_id: this.state.context.branch_id });
-            }
-
-            if (extractedParams.speciality && this.state.context.specialities && !this.state.context.speciality_id) {
-                const specialityObject = this.state.context.specialities.find(s => s.speciality_name.toLowerCase() === extractedParams.speciality.toLowerCase());
-                if (specialityObject) {
-                    this.state.context.speciality_id = specialityObject.speciality_id;
-                }
-            }
-
-            if (this.state.context.speciality_id && !this.state.context.available_times) {
-                this.state.context.available_times = await this.callApi('fetch_available_times_api', { speciality_id: this.state.context.speciality_id });
-            }
+        // --- Chaining Logic ---
+        if (this.state.context.city_id && !this.state.context.branches) {
+            this.state.context.branches = await this.callApi('fetch_branches_api', { city_id: this.state.context.city_id });
+        }
+        if (this.state.context.branch_id && !this.state.context.specialities) {
+            this.state.context.specialities = await this.callApi('fetch_specialities_api', { branch_id: this.state.context.branch_id });
+        }
+        if (this.state.context.speciality_id && !this.state.context.available_times) {
+            this.state.context.available_times = await this.callApi('fetch_available_times_api', { speciality_id: this.state.context.speciality_id });
         }
 
         // Determine the next parameter to ask for
