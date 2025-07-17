@@ -13,23 +13,61 @@ const cities = [
 ];
 
 const branches = {
-    1: [{ branch_id: 101, branch_name: "Kennedy" }, { branch_id: 102, branch_name: "Alborada" }],
-    2: [{ branch_id: 201, branch_name: "La Carolina" }],
-    3: [{ branch_id: 301, branch_name: "Centro Histórico" }]
+    1: [
+        { branch_id: 101, branch_name: "Kennedy" },
+        { branch_id: 102, branch_name: "Alborada" },
+        { branch_id: 103, branch_name: "Sur" }
+    ],
+    2: [
+        { branch_id: 201, branch_name: "La Carolina" },
+        { branch_id: 202, branch_name: "Cumbayá" }
+    ],
+    3: [
+        { branch_id: 301, branch_name: "Centro Histórico" },
+        { branch_id: 302, branch_name: "El Batán" }
+    ]
 };
 
 const specialities = {
-    101: [{ speciality_id: 1, speciality_name: "Medicina General" }, { speciality_id: 2, speciality_name: "Pediatría" }],
-    102: [{ speciality_id: 1, speciality_name: "Medicina General" }, { speciality_id: 3, speciality_name: "Cardiología" }],
-    201: [{ speciality_id: 1, speciality_name: "Medicina General" }, { speciality_id: 4, speciality_name: "Dermatología" }],
-    301: [{ speciality_id: 1, speciality_name: "Medicina General" }],
+    101: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 2, speciality_name: "Pediatría" },
+        { speciality_id: 5, speciality_name: "Ginecología" }
+    ],
+    102: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 3, speciality_name: "Cardiología" }
+    ],
+    103: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 6, speciality_name: "Traumatología" }
+    ],
+    201: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 4, speciality_name: "Dermatología" },
+        { speciality_id: 7, speciality_name: "Oftalmología" }
+    ],
+    202: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 2, speciality_name: "Pediatría" }
+    ],
+    301: [
+        { speciality_id: 1, speciality_name: "Medicina General" }
+    ],
+    302: [
+        { speciality_id: 1, speciality_name: "Medicina General" },
+        { speciality_id: 3, speciality_name: "Cardiología" }
+    ]
 };
 
 const availableTimes = {
-    1: ["2025-07-15 10:00", "2025-07-15 14:00"],
-    2: ["2025-07-15 11:00", "2025-07-15 15:00"],
-    3: ["2025-07-16 09:00", "2025-07-16 13:00"],
-    4: ["2025-07-17 10:00", "2025-07-17 12:00"]
+    1: ["2025-07-15 10:00", "2025-07-15 14:00", "2025-07-16 10:00"],
+    2: ["2025-07-15 11:00", "2025-07-15 15:00", "2025-07-16 11:00"],
+    3: ["2025-07-16 09:00", "2025-07-16 13:00", "2025-07-17 09:00"],
+    4: ["2025-07-17 10:00", "2025-07-17 12:00", "2025-07-18 10:00"],
+    5: ["2025-07-18 08:00", "2025-07-18 11:00"],
+    6: ["2025-07-19 14:00", "2025-07-19 16:00"],
+    7: ["2025-07-20 10:00", "2025-07-20 12:00"]
 };
 
 // Mock API endpoints
