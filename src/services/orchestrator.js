@@ -21,6 +21,7 @@ class ConversationOrchestrator {
         this.executionSequences = null;
         this.flowsConfig = null;
         this.scriptsConfig = null;
+        this.intentsConfig = null;
         this.finalAction = null;
     }
 
@@ -49,6 +50,7 @@ class ConversationOrchestrator {
         this.executionSequences = JSON.parse(await fs.readFile(path.join(configPath, "execution_order_config.json"), "utf8")).execution_sequences;
         this.flowsConfig = JSON.parse(await fs.readFile(path.join(configPath, "flows_config.json"), "utf8"));
         this.scriptsConfig = JSON.parse(await fs.readFile(path.join(configPath, "scripts_config.json"), "utf8"));
+        this.intentsConfig = JSON.parse(await fs.readFile(path.join(configPath, "intents_config.json"), "utf8"));
 
         this.parameters = this.parametersConfig.parameters;
         this.finalAction = this.parametersConfig.final_action;
@@ -212,6 +214,44 @@ class ConversationOrchestrator {
     }
 
     /**
+     * @description Detects the user's intent using Gemini.
+     * @param {string} userInput - The user's input.
+     * @returns {Promise<string|null>} The detected intent name or null.
+     */
+    async detectIntent(userInput) {
+        const prompt = `
+            Por favor, analiza el siguiente texto y determina la intención del usuario.
+            Las intenciones posibles son: ${this.intentsConfig.intents.map(i => i.name).join(', ')}.
+            Descripción de las intenciones:
+            ${this.intentsConfig.intents.map(i => `${i.name}: ${i.description}`).join('\n')}
+            Basado en el texto, responde únicamente con un objeto JSON que contenga la clave "intent" y el valor de la intención detectada.
+            Si no puedes determinar la intención, responde con un objeto JSON con la clave "intent" y el valor "unknown".
+        `;
+
+        const result = await geminiClient.extractParameter(prompt, userInput);
+        return result ? result.intent : null;
+    }
+
+    /**
+     * @description Extracts all possible parameters from the user's response.
+     * @param {string} userInput - The user's input.
+     * @returns {Promise<object|null>} An object containing the extracted parameters.
+     */
+    async extractAllParameters(userInput) {
+        const uncollectedParams = this.parameters.filter(p => !this.state.collected[p.name]);
+        const prompt = `
+            Por favor, analiza el siguiente texto y extrae cualquiera de los siguientes parámetros: ${uncollectedParams.map(p => p.name).join(', ')}.
+            Texto a analizar: "${userInput}"
+            Contexto adicional: ${JSON.stringify(this.state.context)}
+            Responde únicamente con un objeto JSON que contenga los parámetros extraídos.
+            Por ejemplo: { "city": "Guayaquil", "id_number": "0987654321" }
+            Si no puedes extraer ningún parámetro, responde con un objeto JSON vacío.
+        `;
+
+        return await geminiClient.extractParameter(prompt, userInput, this.state.context);
+    }
+
+    /**
      * @description Processes the user's input, orchestrating the collection of the next parameter.
      * @param {string} response - The user's input.
      * @returns {Promise<object>} An object containing the next prompt or the final message.
@@ -219,74 +259,73 @@ class ConversationOrchestrator {
     async processUserInput(response) {
         await this.initialize();
 
-        const paramToProcess = this.getNextParameter();
-        if (!paramToProcess) {
-            return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
-        }
-
-        let extractedData = null;
-        const sequence = this.executionSequences.find(seq => seq.parameter === paramToProcess.name);
-
-        if (sequence) {
-            let context = { ...this.state.context, parameter: paramToProcess.name };
-
-            for (const step of sequence.steps) {
-                const result = await this.processStep(step, response, context);
-
-                if (result && result.error) {
-                    return { next_prompt: result.error };
-                }
-
-                if (step.tool === "ai_extract") {
-                    extractedData = result;
-                }
-            }
-
-            // Perform validation after AI extraction
-            const validationStep = sequence.steps.find(s => s.tool === "validate");
-            if (validationStep) {
-                const validation = this.validationsConfig.validations.find(val => val.parameter === validationStep.validation);
-                if (validation) {
-                    const validationResult = await this.applyValidation(extractedData, validation.rules, context);
-                    if (!validationResult.valid) {
-                        return { next_prompt: validationResult.message };
-                    }
+        // If intent is not set, detect it
+        if (!this.state.currentFlow || this.state.currentFlow === 'scheduling') { // Default check
+            const intent = await this.detectIntent(response);
+            if (intent && this.flowsConfig.flows[intent]) {
+                this.state.currentFlow = intent;
+            } else {
+                // Try to extract parameters even if intent is not clear
+                const extractedParams = await this.extractAllParameters(response);
+                if (extractedParams && Object.keys(extractedParams).length > 0) {
+                    this.state.currentFlow = 'scheduling'; // Assume scheduling if params are detected
+                } else {
+                    return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
                 }
             }
         }
 
-        if (extractedData) {
-            // Mark the parameter as collected
-            this.state.collected[paramToProcess.name] = true;
-            // Add the extracted data to the context for future steps
-            Object.assign(this.state.context, extractedData);
+        // Extract all possible parameters from the user's response
+        const extractedParams = await this.extractAllParameters(response);
+
+        if (extractedParams) {
+            for (const paramName in extractedParams) {
+                if (this.parameters.find(p => p.name === paramName) && !this.state.collected[paramName]) {
+                    this.state.collected[paramName] = true;
+                    this.state.context[paramName] = extractedParams[paramName];
+                }
+            }
         }
 
-        // Determine the next parameter from the flow
-        const currentFlowConfig = this.flowsConfig.flows[this.state.currentFlow];
-        this.state.currentParameter = currentFlowConfig.parameters[paramToProcess.name].next_parameter;
+        // Determine the next parameter to ask for
+        const nextParamName = this.flowsConfig.flows[this.state.currentFlow].initial_parameter;
+        let currentParam = this.parameters.find(p => p.name === nextParamName);
+        while (currentParam && this.state.collected[currentParam.name]) {
+            const nextParamNameInFlow = this.flowsConfig.flows[this.state.currentFlow].parameters[currentParam.name].next_parameter;
+            currentParam = this.parameters.find(p => p.name === nextParamNameInFlow);
+        }
+
+        this.state.currentParameter = currentParam ? currentParam.name : null;
 
         await this.saveState();
 
-        const nextParam = this.getNextParameter();
-        if (!nextParam) {
+        if (!this.state.currentParameter) {
             return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
         }
 
+        const nextParam = this.getNextParameter();
+
         // Pre-fetch data for the next question if needed
         const nextSequence = this.executionSequences.find(seq => seq.parameter === nextParam.name);
-        if (nextSequence && nextSequence.steps[0].tool === 'api_call') {
-            await this.processStep(nextSequence.steps[0], '', this.state.context);
+        if (nextSequence) {
+            for (const step of nextSequence.steps) {
+                if (step.tool === 'api_call') {
+                    await this.processStep(step, '', this.state.context);
+                }
+            }
         }
 
         let question = nextParam.question;
-        if (question.includes("{city_name}")) {
-            question = question.replace("{city_name}", this.state.context.city_name || "la ciudad");
+        // Replace placeholders in the question
+        const placeholders = question.match(/\{(\w+)\}/g);
+        if (placeholders) {
+            placeholders.forEach(placeholder => {
+                const key = placeholder.slice(1, -1);
+                const value = this.state.context[key] || `[${key} no encontrado]`;
+                question = question.replace(placeholder, value);
+            });
         }
-        if (question.includes("{available_times}")) {
-            const times = this.state.context.available_times || [];
-            question = question.replace("{available_times}", times.join(", ") || "no hay horarios disponibles");
-        }
+
 
         return { next_prompt: question, collected_params: this.state.context };
     }
@@ -297,11 +336,9 @@ class ConversationOrchestrator {
      */
     async startConversation() {
         await this.initialize();
-        const nextParam = this.getNextParameter();
-        if (nextParam) {
-            return { next_prompt: nextParam.question };
-        }
-        return { final_message: "No hay parámetros por recolectar." };
+        // The first message from the user will determine the intent.
+        // So, we just return a generic welcome message.
+        return { next_prompt: "Hola, soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?" };
     }
 }
 

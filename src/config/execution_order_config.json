@@ -4,10 +4,6 @@
             "parameter": "id_number",
             "steps": [
                 {
-                    "tool": "ai_extract",
-                    "prompt": "Extrae el número de identificación de la respuesta del usuario. Devuelve un JSON con la clave 'id_number'."
-                },
-                {
                     "tool": "validate",
                     "validation": "id_number"
                 }
@@ -20,10 +16,6 @@
                     "tool": "api_call",
                     "api": "fetch_cities_api",
                     "output_key": "cities"
-                },
-                {
-                    "tool": "ai_extract",
-                    "prompt": "Extrae el nombre de la ciudad de la respuesta del usuario y compáralo con una de las ciudades proporcionadas. Devuelve un JSON con las claves 'city_id' y 'city_name'."
                 },
                 {
                     "tool": "validate",
@@ -41,10 +33,6 @@
                     "output_key": "branches"
                 },
                 {
-                    "tool": "ai_extract",
-                    "prompt": "Extrae el nombre de la sucursal de la respuesta del usuario y compáralo con una de las sucursales proporcionadas. Devuelve un JSON con las claves 'branch_id' y 'branch_name'."
-                },
-                {
                     "tool": "validate",
                     "validation": "branch"
                 }
@@ -60,10 +48,6 @@
                     "output_key": "specialities"
                 },
                 {
-                    "tool": "ai_extract",
-                    "prompt": "Extrae el nombre de la especialidad de la respuesta del usuario y compáralo con una de las especialidades proporcionadas. Devuelve un JSON con las claves 'speciality_id' y 'speciality_name'."
-                },
-                {
                     "tool": "validate",
                     "validation": "speciality"
                 }
@@ -77,10 +61,6 @@
                     "api": "fetch_available_times_api",
                     "input_keys": ["speciality_id"],
                     "output_key": "available_times"
-                },
-                {
-                    "tool": "ai_extract",
-                    "prompt": "Extrae la fecha y hora de la respuesta del usuario y compárala con una de las opciones proporcionadas. Devuelve un JSON con la clave 'date_time'."
                 },
                 {
                     "tool": "validate",

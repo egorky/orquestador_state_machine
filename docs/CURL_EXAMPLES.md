@@ -1,113 +1,104 @@
-# Ejemplos de `curl` para Probar el Flujo de Conversación
+# Ejemplos de cURL
 
-Esta guía proporciona una serie de comandos `curl` para probar el flujo completo de agendamiento de citas a través de la API del orquestador.
+Estos ejemplos muestran cómo interactuar con el orquestador a través de la API REST.
 
-**Prerrequisitos**:
-- El servidor principal debe estar en ejecución (`npm start`).
-- La API del orquestador y la API simulada deben estar habilitadas en tu archivo `.env`.
+## Iniciar una Conversación
 
-## Flujo de Prueba
-
-### 1. Iniciar la Conversación
-
-Este comando inicia una nueva sesión de conversación y obtiene la primera pregunta.
+Para iniciar una conversación, envía una solicitud POST a `/start_conversation`.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01"}' http://localhost:3000/start_conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123"}' http://localhost:3000/start_conversation
 ```
 
 **Respuesta Esperada:**
+
 ```json
 {
-    "next_prompt": "Por favor, deme su número de identificación."
+    "next_prompt": "Hola, soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?"
 }
 ```
 
-### 2. Enviar el Número de Identificación
+## Detección de Intención y Extracción de Parámetros
+
+Envía la respuesta del usuario a `/conversation`. El sistema detectará la intención y extraerá los parámetros.
+
+### Ejemplo 1: Intención de Agendamiento
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01", "userInput": "Mi cédula es 0987654321"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar una cita"}' http://localhost:3000/conversation
 ```
 
 **Respuesta Esperada:**
+
 ```json
 {
-    "next_prompt": "¿En qué ciudad desea agendar su cita?",
-    "collected_params": {
-        "id_number": "0987654321"
-    }
+    "next_prompt": "Por favor, deme su número de identificación.",
+    "collected_params": {}
 }
 ```
 
-### 3. Enviar la Ciudad
+### Ejemplo 2: Parámetros Fuera de Orden
+
+En este ejemplo, el usuario proporciona la ciudad y el número de identificación en la misma frase.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01", "userInput": "Quiero mi cita en Guayaquil"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Quiero agendar en Guayaquil, mi cédula es 0987654321"}' http://localhost:3000/conversation
 ```
 
 **Respuesta Esperada:**
+
+El sistema debería extraer ambos parámetros y luego preguntar por el siguiente parámetro que falta en el flujo (en este caso, la sucursal).
+
 ```json
 {
     "next_prompt": "¿En qué sucursal de Guayaquil desea su cita?",
     "collected_params": {
         "id_number": "0987654321",
-        "city_id": 1,
-        "city_name": "Guayaquil"
+        "city": "Guayaquil"
     }
 }
 ```
 
-### 4. Enviar la Sucursal
+## Continuar la Conversación
+
+Continúa enviando las respuestas del usuario a `/conversation` hasta que se recopilen todos los parámetros.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01", "userInput": "En la sucursal Kennedy"}' http://localhost:3000/conversation
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "En la Kennedy"}' http://localhost:3000/conversation
 ```
 
 **Respuesta Esperada:**
+
 ```json
 {
     "next_prompt": "¿Para qué especialidad desea su cita?",
     "collected_params": {
         "id_number": "0987654321",
-        "city_id": 1,
-        "city_name": "Guayaquil",
-        "branch_id": 101,
-        "branch_name": "Kennedy"
+        "city": "Guayaquil",
+        "branch": "Kennedy"
     }
 }
 ```
 
-### 5. Enviar la Especialidad
+## Finalizar la Conversación
+
+Una vez que se recopilan todos los parámetros, el sistema devolverá un mensaje final.
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01", "userInput": "Para pediatría"}' http://localhost:3000/conversation
+# Última respuesta del usuario
+curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Medicina General"}' http://localhost:3000/conversation
 ```
 
 **Respuesta Esperada:**
+
 ```json
 {
-    "next_prompt": "Por favor, elija una fecha y hora de las siguientes opciones: 2025-07-15 11:00, 2025-07-15 15:00.",
+    "final_message": "Todos los parámetros han sido recolectados. Gracias.",
     "collected_params": {
         "id_number": "0987654321",
-        "city_id": 1,
-        "city_name": "Guayaquil",
-        "branch_id": 101,
-        "branch_name": "Kennedy",
-        "speciality_id": 2,
-        "speciality_name": "Pediatría"
+        "city": "Guayaquil",
+        "branch": "Kennedy",
+        "speciality": "Medicina General"
     }
-}
-```
-
-### 6. Enviar la Fecha y Hora
-
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "curl-test-01", "userInput": "el 15 de julio a las 3 de la tarde"}' http://localhost:3000/conversation
-```
-
-**Respuesta Esperada:**
-```json
-{
-    "final_message": "Cita agendada exitosamente (simulado)."
 }
 ```
