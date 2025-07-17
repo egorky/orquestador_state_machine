@@ -297,6 +297,22 @@ class ConversationOrchestrator {
                             this.state.context.city_id = cityObject.city_id;
                         }
                     }
+
+                    // If branch is extracted, get branch_id
+                    if (paramName === 'branch' && this.state.context.branches) {
+                        const branchObject = this.state.context.branches.find(b => b.branch_name.toLowerCase() === extractedParams.branch.toLowerCase());
+                        if (branchObject) {
+                            this.state.context.branch_id = branchObject.branch_id;
+                        }
+                    }
+
+                    // If speciality is extracted, get speciality_id
+                    if (paramName === 'speciality' && this.state.context.specialities) {
+                        const specialityObject = this.state.context.specialities.find(s => s.speciality_name.toLowerCase() === extractedParams.speciality.toLowerCase());
+                        if (specialityObject) {
+                            this.state.context.speciality_id = specialityObject.speciality_id;
+                        }
+                    }
                 }
             }
         }
