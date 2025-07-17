@@ -288,6 +288,15 @@ class ConversationOrchestrator {
                 if (this.parameters.find(p => p.name === paramName) && !this.state.collected[paramName]) {
                     this.state.collected[paramName] = true;
                     this.state.context[paramName] = extractedParams[paramName];
+
+                    // If city is extracted, get city_id
+                    if (paramName === 'city') {
+                        const cities = await this.callApi('fetch_cities_api', {});
+                        const cityObject = cities.find(c => c.city_name.toLowerCase() === extractedParams.city.toLowerCase());
+                        if (cityObject) {
+                            this.state.context.city_id = cityObject.city_id;
+                        }
+                    }
                 }
             }
         }
