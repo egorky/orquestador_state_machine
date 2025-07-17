@@ -323,15 +323,14 @@ class ConversationOrchestrator {
             }
         }
 
-        // --- Chaining Logic ---
-        if (this.state.context.city_id && !this.state.context.branches) {
-            this.state.context.branches = await this.callApi('fetch_branches_api', { city_id: this.state.context.city_id });
-        }
-        if (this.state.context.branch_id && !this.state.context.specialities) {
-            this.state.context.specialities = await this.callApi('fetch_specialities_api', { branch_id: this.state.context.branch_id });
-        }
-        if (this.state.context.speciality_id && !this.state.context.available_times) {
-            this.state.context.available_times = await this.callApi('fetch_available_times_api', { speciality_id: this.state.context.speciality_id });
+        // --- Execute post-collection steps ---
+        for (const paramName in extractedParams) {
+            const sequence = this.executionSequences.find(seq => seq.parameter === paramName);
+            if (sequence) {
+                for (const step of sequence.steps) {
+                    await this.processStep(step, response, this.state.context);
+                }
+            }
         }
 
         // Determine the next parameter to ask for

@@ -2,24 +2,16 @@
     "execution_sequences": [
         {
             "parameter": "id_number",
-            "steps": [
-                {
-                    "tool": "validate",
-                    "validation": "id_number"
-                }
-            ]
+            "steps": []
         },
         {
             "parameter": "city",
             "steps": [
                 {
                     "tool": "api_call",
-                    "api": "fetch_cities_api",
-                    "output_key": "cities"
-                },
-                {
-                    "tool": "validate",
-                    "validation": "city"
+                    "api": "fetch_branches_api",
+                    "input_keys": ["city_id"],
+                    "output_key": "branches"
                 }
             ]
         },
@@ -28,13 +20,9 @@
             "steps": [
                 {
                     "tool": "api_call",
-                    "api": "fetch_branches_api",
-                    "input_keys": ["city_id"],
-                    "output_key": "branches"
-                },
-                {
-                    "tool": "validate",
-                    "validation": "branch"
+                    "api": "fetch_specialities_api",
+                    "input_keys": ["branch_id"],
+                    "output_key": "specialities"
                 }
             ]
         },
@@ -43,30 +31,15 @@
             "steps": [
                 {
                     "tool": "api_call",
-                    "api": "fetch_specialities_api",
-                    "input_keys": ["branch_id"],
-                    "output_key": "specialities"
-                },
-                {
-                    "tool": "validate",
-                    "validation": "speciality"
+                    "api": "fetch_available_times_api",
+                    "input_keys": ["speciality_id"],
+                    "output_key": "available_times"
                 }
             ]
         },
         {
             "parameter": "date_time",
-            "steps": [
-                {
-                    "tool": "api_call",
-                    "api": "fetch_available_times_api",
-                    "input_keys": ["speciality_id"],
-                    "output_key": "available_times"
-                },
-                {
-                    "tool": "validate",
-                    "validation": "date_time"
-                }
-            ]
+            "steps": []
         },
         {
             "parameter": "final_action",
