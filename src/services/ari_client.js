@@ -6,20 +6,11 @@ const ARI_URL = process.env.ARI_URL;
 const ARI_USERNAME = process.env.ARI_USERNAME;
 const ARI_PASSWORD = process.env.ARI_PASSWORD;
 
-/**
- * @description Starts the ARI client and handles incoming calls.
- * @returns {Promise<void>}
- */
 async function start() {
     try {
         const client = await ari.connect(ARI_URL, ARI_USERNAME, ARI_PASSWORD);
         console.log('Connected to ARI');
 
-        /**
-         * @description Handles the StasisStart event, which is triggered when a new channel enters the Stasis application.
-         * @param {object} event - The StasisStart event object.
-         * @param {import('ari-client').Channel} channel - The channel that entered Stasis.
-         */
         client.on('StasisStart', async (event, channel) => {
             const sessionId = event.channel.id;
             const orchestrator = new ConversationOrchestrator(sessionId);
