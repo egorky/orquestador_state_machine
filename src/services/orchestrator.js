@@ -288,32 +288,42 @@ class ConversationOrchestrator {
                 if (this.parameters.find(p => p.name === paramName) && !this.state.collected[paramName]) {
                     this.state.collected[paramName] = true;
                     this.state.context[paramName] = extractedParams[paramName];
-
-                    // If city is extracted, get city_id
-                    if (paramName === 'city') {
-                        const cities = await this.callApi('fetch_cities_api', {});
-                        const cityObject = cities.find(c => c.city_name.toLowerCase() === extractedParams.city.toLowerCase());
-                        if (cityObject) {
-                            this.state.context.city_id = cityObject.city_id;
-                        }
-                    }
-
-                    // If branch is extracted, get branch_id
-                    if (paramName === 'branch' && this.state.context.branches) {
-                        const branchObject = this.state.context.branches.find(b => b.branch_name.toLowerCase() === extractedParams.branch.toLowerCase());
-                        if (branchObject) {
-                            this.state.context.branch_id = branchObject.branch_id;
-                        }
-                    }
-
-                    // If speciality is extracted, get speciality_id
-                    if (paramName === 'speciality' && this.state.context.specialities) {
-                        const specialityObject = this.state.context.specialities.find(s => s.speciality_name.toLowerCase() === extractedParams.speciality.toLowerCase());
-                        if (specialityObject) {
-                            this.state.context.speciality_id = specialityObject.speciality_id;
-                        }
-                    }
                 }
+            }
+
+            // --- ID Conversion and Chaining Logic ---
+            if (extractedParams.city && !this.state.context.city_id) {
+                const cities = await this.callApi('fetch_cities_api', {});
+                const cityObject = cities.find(c => c.city_name.toLowerCase() === extractedParams.city.toLowerCase());
+                if (cityObject) {
+                    this.state.context.city_id = cityObject.city_id;
+                }
+            }
+
+            if (this.state.context.city_id && !this.state.context.branches) {
+                this.state.context.branches = await this.callApi('fetch_branches_api', { city_id: this.state.context.city_id });
+            }
+
+            if (extractedParams.branch && this.state.context.branches && !this.state.context.branch_id) {
+                const branchObject = this.state.context.branches.find(b => b.branch_name.toLowerCase() === extractedParams.branch.toLowerCase());
+                if (branchObject) {
+                    this.state.context.branch_id = branchObject.branch_id;
+                }
+            }
+
+            if (this.state.context.branch_id && !this.state.context.specialities) {
+                this.state.context.specialities = await this.callApi('fetch_specialities_api', { branch_id: this.state.context.branch_id });
+            }
+
+            if (extractedParams.speciality && this.state.context.specialities && !this.state.context.speciality_id) {
+                const specialityObject = this.state.context.specialities.find(s => s.speciality_name.toLowerCase() === extractedParams.speciality.toLowerCase());
+                if (specialityObject) {
+                    this.state.context.speciality_id = specialityObject.speciality_id;
+                }
+            }
+
+            if (this.state.context.speciality_id && !this.state.context.available_times) {
+                this.state.context.available_times = await this.callApi('fetch_available_times_api', { speciality_id: this.state.context.speciality_id });
             }
         }
 
