@@ -12,7 +12,7 @@
         },
         {
             "name": "branch",
-            "question": "¿En qué sucursal de {city_name} desea su cita?",
+            "question": "¿En qué sucursal de {city} desea su cita?",
             "dependencies": ["city"]
         },
         {
