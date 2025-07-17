@@ -323,16 +323,6 @@ class ConversationOrchestrator {
             }
         }
 
-        // --- Execute post-collection steps ---
-        for (const paramName in extractedParams) {
-            const sequence = this.executionSequences.find(seq => seq.parameter === paramName);
-            if (sequence) {
-                for (const step of sequence.steps) {
-                    await this.processStep(step, response, this.state.context);
-                }
-            }
-        }
-
         // Determine the next parameter to ask for
         const nextParamName = this.flowsConfig.flows[this.state.currentFlow].initial_parameter;
         let currentParam = this.parameters.find(p => p.name === nextParamName);
@@ -355,6 +345,7 @@ class ConversationOrchestrator {
         const nextSequence = this.executionSequences.find(seq => seq.parameter === nextParam.name);
         if (nextSequence) {
             for (const step of nextSequence.steps) {
+                // We only care about api_calls for pre-fetching
                 if (step.tool === 'api_call') {
                     await this.processStep(step, '', this.state.context);
                 }
