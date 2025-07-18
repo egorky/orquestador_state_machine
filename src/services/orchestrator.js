@@ -41,23 +41,21 @@ class ConversationOrchestrator {
         await redisClient.saveData(this.sessionId, this.state);
     }
 
-    async runScript(scriptName, inputData) {
+    async runScript(scriptName, inputKey, inputData) {
         const scriptConfig = this.configs.scripts.scripts.find(s => s.name === scriptName);
         if (!scriptConfig) throw new Error(`Script '${scriptName}' not found.`);
 
+        const sandbox = {};
+        // El input_key del script (ej: "cities_data") se convierte en el nombre de la variable dentro del sandbox
+        const varName = inputKey.replace('_data', ''); // "cities"
+        sandbox[varName] = inputData;
+
         const vm = new VM({
             timeout: 1000,
-            sandbox: { input: inputData }
+            sandbox: sandbox
         });
 
-        const fullScript = `
-            function run(data) {
-                ${scriptConfig.function_body.replace(/return\s+/g, 'return data.')}
-            }
-            run(input);
-        `;
-
-        return vm.run(fullScript);
+        return vm.run(scriptConfig.function_body);
     }
 
     async callApi(apiName, inputData) {
@@ -94,7 +92,7 @@ class ConversationOrchestrator {
 
             case 'script':
                 const scriptInput = this.state.context[step.input_key];
-                const scriptResult = await this.runScript(step.name, scriptInput);
+                const scriptResult = await this.runScript(step.name, step.input_key, scriptInput);
                 if (step.output_key) this.state.context[step.output_key] = scriptResult;
                 break;
 
