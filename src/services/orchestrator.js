@@ -174,12 +174,26 @@ class ConversationOrchestrator {
     }
 
     moveToNextParameter() {
-        const flow = this.configs.flows.flows[this.state.current_flow];
-        let current = flow.initial_parameter;
-        while(current && this.state.collected_params[current]){
-            current = flow.parameters[current].next_parameter;
+        const flowConfig = this.configs.flows.flows[this.state.current_flow];
+        const parametersConfig = this.configs.parameters;
+
+        // Find the first parameter in the sequence that has not been collected.
+        let nextParam = flowConfig.initial_parameter;
+        while (nextParam) {
+            const paramDefinition = parametersConfig[nextParam];
+            // We need to check if the *expected outputs* of the parameter have been collected.
+            // For example, for the "city" parameter, we expect "city_id" to be collected.
+            // This is a simplification; a more robust solution would define outputs in config.
+            // For now, we'll check for common patterns like paramName_id or paramName.
+            const expectedOutputKey = `${nextParam}_id`;
+            if (!this.state.collected_params[nextParam] && !this.state.collected_params[expectedOutputKey]) {
+                this.state.current_parameter = nextParam;
+                return;
+            }
+            nextParam = flowConfig.parameters[nextParam].next_parameter;
         }
-        this.state.current_parameter = current;
+
+        this.state.current_parameter = null; // All parameters collected
     }
 
     async detectIntent(userInput) {
