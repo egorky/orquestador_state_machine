@@ -30,6 +30,10 @@
                     "next_parameter": null
                 }
             }
+        },
+        "talk_to_agent": {
+            "initial_parameter": null,
+            "parameters": {}
         }
     }
 }

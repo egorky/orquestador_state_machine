@@ -1,0 +1,19 @@
+{
+    "intents": [
+        {
+            "name": "scheduling",
+            "keywords": ["agendar", "cita", "reservar", "hora", "médico", "doctor"],
+            "description": "El usuario quiere programar una nueva cita."
+        },
+        {
+            "name": "cancellation",
+            "keywords": ["cancelar", "anular", "eliminar", "borrar", "cita"],
+            "description": "El usuario quiere cancelar una cita existente."
+        },
+        {
+            "name": "talk_to_agent",
+            "keywords": ["agente", "humano", "persona", "operador"],
+            "description": "El usuario quiere hablar con un agente humano."
+        }
+    ]
+}

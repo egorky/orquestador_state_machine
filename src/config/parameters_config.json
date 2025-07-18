@@ -8,17 +8,41 @@
         {
             "name": "city",
             "question": "¿En qué ciudad desea agendar su cita?",
-            "dependencies": ["id_number"]
+            "dependencies": ["id_number"],
+            "lookup": {
+                "from_api": "fetch_cities_api",
+                "in": "cities",
+                "match": "city_name",
+                "output": {
+                    "city_id": "city_id"
+                }
+            }
         },
         {
             "name": "branch",
-            "question": "¿En qué sucursal de {city_name} desea su cita?",
-            "dependencies": ["city"]
+            "question": "¿En qué sucursal de {city} desea su cita?",
+            "dependencies": ["city"],
+            "lookup": {
+                "from_context": "branches",
+                "in": "branches",
+                "match": "branch_name",
+                "output": {
+                    "branch_id": "branch_id"
+                }
+            }
         },
         {
             "name": "speciality",
             "question": "¿Para qué especialidad desea su cita?",
-            "dependencies": ["branch"]
+            "dependencies": ["branch"],
+            "lookup": {
+                "from_context": "specialities",
+                "in": "specialities",
+                "match": "speciality_name",
+                "output": {
+                    "speciality_id": "speciality_id"
+                }
+            }
         },
         {
             "name": "date_time",
@@ -28,6 +52,6 @@
     ],
     "final_action": {
         "api": "create_appointment_api",
-        "required_parameters": ["id_number", "city", "branch", "speciality", "date_time"]
+        "required_parameters": ["id_number", "city_id", "branch_id", "speciality_id", "date_time"]
     }
 }
