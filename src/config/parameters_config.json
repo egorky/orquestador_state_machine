@@ -7,7 +7,7 @@
         "question": "¿En qué ciudad desea agendar su cita? Tenemos disponibles en: {cities_list}",
         "pre_ask_steps": [
             { "tool": "api", "name": "fetch_cities_api", "output_key": "cities_data" },
-            { "tool": "script", "name": "format_cities_list" }
+            { "tool": "script", "name": "format_cities_list", "output_key": "cities_list" }
         ],
         "post_ask_steps": [
             { "tool": "ai" },
@@ -18,7 +18,7 @@
         "question": "Perfecto. ¿En cuál de nuestras sucursales en {city_name} desea su cita? Puede escoger entre: {branches_list}",
         "pre_ask_steps": [
             { "tool": "api", "name": "fetch_branches_api", "input_keys": { "city_id": "context.city_id" }, "output_key": "branches_data" },
-            { "tool": "script", "name": "format_branches_list" }
+            { "tool": "script", "name": "format_branches_list", "output_key": "branches_list" }
         ],
         "post_ask_steps": [{ "tool": "ai" }]
     },
@@ -26,7 +26,7 @@
         "question": "Excelente. ¿Para qué especialidad necesita la cita? En esta sucursal tenemos: {specialities_list}",
         "pre_ask_steps": [
             { "tool": "api", "name": "fetch_specialities_api", "input_keys": { "branch_id": "context.branch_id" }, "output_key": "specialities_data" },
-            { "tool": "script", "name": "format_specialities_list" }
+            { "tool": "script", "name": "format_specialities_list", "output_key": "specialities_list" }
         ],
         "post_ask_steps": [{ "tool": "ai" }]
     },
@@ -34,7 +34,7 @@
         "question": "Entendido. ¿En qué fecha y hora desea la cita? Tenemos los siguientes turnos disponibles: {available_times_list}",
         "pre_ask_steps": [
             { "tool": "api", "name": "fetch_available_times_api", "input_keys": { "speciality_id": "context.speciality_id" }, "output_key": "available_times_data" },
-            { "tool": "script", "name": "format_available_times_list" }
+            { "tool": "script", "name": "format_available_times_list", "output_key": "available_times_list" }
         ],
         "post_ask_steps": [{ "tool": "ai" }]
     }
