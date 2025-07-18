@@ -17,9 +17,9 @@ class ConversationOrchestrator {
         this.state = loadedState || {
             collected_params: {},
             context: {},
-            current_flow: 'scheduling',
+            current_flow: null,
             current_parameter: null,
-            intent_detected: false,
+            status: 'AWAITING_INTENT' // NEW: Explicit status
         };
 
         const configPath = path.join(__dirname, '..', 'config');
@@ -31,31 +31,23 @@ class ConversationOrchestrator {
             scripts: JSON.parse(await fs.readFile(path.join(configPath, "scripts_config.json"), "utf8")),
             intents: JSON.parse(await fs.readFile(path.join(configPath, "intents_config.json"), "utf8")),
         };
-
-        if (!this.state.current_parameter) {
-            this.state.current_parameter = this.configs.flows.flows[this.state.current_flow].initial_parameter;
-        }
     }
 
     async saveState() {
         await redisClient.saveData(this.sessionId, this.state);
     }
 
-    async runScript(scriptName, inputKey, inputData) {
+    async runScript(scriptName, inputData) {
         const scriptConfig = this.configs.scripts.scripts.find(s => s.name === scriptName);
         if (!scriptConfig) throw new Error(`Script '${scriptName}' not found.`);
 
-        const sandbox = {};
-        // El input_key del script (ej: "cities_data") se convierte en el nombre de la variable dentro del sandbox
-        const varName = inputKey.replace('_data', ''); // "cities"
-        sandbox[varName] = inputData;
-
         const vm = new VM({
             timeout: 1000,
-            sandbox: sandbox
+            sandbox: { input: inputData }
         });
 
-        return vm.run(scriptConfig.function_body);
+        const functionBody = scriptConfig.function_body.replace(/cities|branches|specialities|available_times/g, 'input');
+        return vm.run(`(function(input) { ${functionBody} })(input)`);
     }
 
     async callApi(apiName, inputData) {
@@ -83,7 +75,8 @@ class ConversationOrchestrator {
                 const apiInputs = {};
                 if (step.input_keys) {
                     for (const key in step.input_keys) {
-                        apiInputs[key] = this.state.context[step.input_keys[key].split('.')[1]];
+                        const contextKey = step.input_keys[key].split('.')[1];
+                        apiInputs[key] = this.state.context[contextKey];
                     }
                 }
                 const apiResult = await this.callApi(step.name, apiInputs);
@@ -91,23 +84,27 @@ class ConversationOrchestrator {
                 break;
 
             case 'script':
-                const scriptInput = this.state.context[step.input_key];
-                const scriptResult = await this.runScript(step.name, step.input_key, scriptInput);
-                if (step.output_key) this.state.context[step.output_key] = scriptResult;
+                if(this.state.context[step.input_key]){
+                    const scriptInput = this.state.context[step.input_key];
+                    const scriptResult = await this.runScript(step.name, scriptInput);
+                    if (step.output_key) this.state.context[step.output_key] = scriptResult;
+                }
                 break;
 
             case 'ai':
                 const aiResult = await geminiClient.extractParameter(step.prompt, userInput, this.state.context);
                 if (aiResult) {
                     for (const key in aiResult) {
-                        this.state.collected_params[key] = aiResult[key];
-                        this.state.context[key] = aiResult[key];
+                        if (aiResult[key] !== null) {
+                            this.state.collected_params[key] = aiResult[key];
+                            this.state.context[key] = aiResult[key];
+                        }
                     }
                 }
                 break;
 
             case 'validate':
-                // Implement validation logic here if needed
+                // Implement validation logic here
                 break;
 
             default:
@@ -118,28 +115,33 @@ class ConversationOrchestrator {
     async processUserInput(userInput) {
         await this.initialize();
 
-        if (!this.state.intent_detected) {
+        if (this.state.status === 'AWAITING_INTENT') {
             const intent = await this.detectIntent(userInput);
             if (intent && this.configs.flows.flows[intent]) {
                 this.state.current_flow = intent;
-                this.state.intent_detected = true;
+                this.state.status = 'COLLECTING_PARAMS';
+                this.state.collected_params['intent'] = intent;
+                this.state.context['intent'] = intent;
+
                 if (intent === 'talk_to_agent') {
+                    await this.saveState();
                     return { final_message: "Entendido. Le transferiré con un agente humano." };
                 }
+                // Set the first parameter of the detected flow
+                this.state.current_parameter = this.configs.flows.flows[intent].initial_parameter;
             } else {
-                return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
+                 await this.saveState();
+                 return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
             }
-        }
-
-        const currentParamConfig = this.configs.parameters[this.state.current_parameter];
-
-        if (currentParamConfig.post_ask_steps) {
-            for (const step of currentParamConfig.post_ask_steps) {
-                await this.executeStep(step, userInput);
+        } else { // status === 'COLLECTING_PARAMS'
+            const currentParamConfig = this.configs.parameters[this.state.current_parameter];
+            if (currentParamConfig && currentParamConfig.post_ask_steps) {
+                for (const step of currentParamConfig.post_ask_steps) {
+                    await this.executeStep(step, userInput);
+                }
             }
+            this.moveToNextParameter();
         }
-
-        this.moveToNextParameter();
 
         if (!this.state.current_parameter) {
             await this.saveState();
@@ -151,6 +153,7 @@ class ConversationOrchestrator {
 
     async prepareNextQuestion() {
         const nextParamConfig = this.configs.parameters[this.state.current_parameter];
+
         if (nextParamConfig.pre_ask_steps) {
             for (const step of nextParamConfig.pre_ask_steps) {
                 await this.executeStep(step);
@@ -171,41 +174,33 @@ class ConversationOrchestrator {
     }
 
     moveToNextParameter() {
-        const flowParams = this.configs.flows.flows[this.state.current_flow].parameters;
-        let nextParam = null;
-
-        if(this.state.current_parameter) {
-            nextParam = flowParams[this.state.current_parameter].next_parameter;
-        } else {
-            nextParam = this.configs.flows.flows[this.state.current_flow].initial_parameter;
+        const flow = this.configs.flows.flows[this.state.current_flow];
+        let current = flow.initial_parameter;
+        while(current && this.state.collected_params[current]){
+            current = flow.parameters[current].next_parameter;
         }
-
-        while (nextParam && this.state.collected_params[nextParam]) {
-            nextParam = flowParams[nextParam].next_parameter;
-        }
-        this.state.current_parameter = nextParam;
+        this.state.current_parameter = current;
     }
 
-
     async detectIntent(userInput) {
+        const promptConfig = this.configs.intents;
         const prompt = `
             Por favor, analiza el siguiente texto y determina la intención del usuario.
-            Las intenciones posibles son: ${this.configs.intents.intents.map(i => i.name).join(', ')}.
+            Las intenciones posibles son: ${promptConfig.intents.map(i => i.name).join(', ')}.
             Descripción de las intenciones:
-            ${this.configs.intents.intents.map(i => `${i.name}: ${i.description}`).join('\n')}
+            ${promptConfig.intents.map(i => `${i.name}: ${i.description}`).join('\n')}
             Basado en el texto, responde únicamente con un objeto JSON que contenga la clave "intent" y el valor de la intención detectada.
             Si no puedes determinar la intención, responde con un objeto JSON con la clave "intent" y el valor "unknown".
         `;
-        const result = await geminiClient.extractParameter(prompt, userInput);
+        const result = await geminiClient.extractParameter(prompt, userInput, this.state.context);
         return result ? result.intent : null;
     }
 
     async startConversation() {
         await this.initialize();
-        if (!this.state.current_parameter) {
-            this.state.current_parameter = this.configs.flows.flows[this.state.current_flow].initial_parameter;
-        }
-        return this.prepareNextQuestion();
+        this.state.status = 'AWAITING_INTENT';
+        await this.saveState();
+        return { next_prompt: "Hola, soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?", collected_params: {} };
     }
 }
 
