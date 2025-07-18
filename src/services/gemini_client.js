@@ -38,11 +38,15 @@ async function extractParameter(prompt, textToAnalyze, context = {}) {
   logger.debug(`Enviando a Gemini: ${fullPrompt}`);
 
   try {
-    const result = await ai.getGenerativeModel({ model: modelName }).generateContent(fullPrompt);
-    const response = result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+        model: modelName,
+        contents: fullPrompt,
+    });
 
-    logger.debug(`Respuesta de Gemini (raw): ${text}`);
+    logger.debug(`Respuesta de Gemini (raw): ${JSON.stringify(response, null, 2)}`);
+
+    const text = response.text;
+    logger.debug(`Texto extraído de Gemini: ${text}`);
 
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
     let parsedJson;
