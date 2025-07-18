@@ -15,6 +15,10 @@
         {
             "name": "format_available_times_list",
             "function_body": "return available_times.join(', ');"
+        },
+        {
+            "name": "find_city_name",
+            "function_body": "const city = context.cities_data.find(c => c.city_id === context.city_id); return city ? city.city_name : '';"
         }
     ]
 }

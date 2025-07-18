@@ -37,17 +37,16 @@ class ConversationOrchestrator {
         await redisClient.saveData(this.sessionId, this.state);
     }
 
-    async runScript(scriptName, inputData) {
+    async runScript(scriptName, context) {
         const scriptConfig = this.configs.scripts.scripts.find(s => s.name === scriptName);
         if (!scriptConfig) throw new Error(`Script '${scriptName}' not found.`);
 
         const vm = new VM({
             timeout: 1000,
-            sandbox: { input: inputData }
+            sandbox: { context: context }
         });
 
-        const functionBody = scriptConfig.function_body.replace(/cities|branches|specialities|available_times/g, 'input');
-        return vm.run(`(function(input) { ${functionBody} })(input)`);
+        return vm.run(`(function(context) { ${scriptConfig.function_body} })(context)`);
     }
 
     async callApi(apiName, inputData) {
@@ -84,10 +83,10 @@ class ConversationOrchestrator {
                 break;
 
             case 'script':
-                if(this.state.context[step.input_key]){
-                    const scriptInput = this.state.context[step.input_key];
-                    const scriptResult = await this.runScript(step.name, scriptInput);
-                    if (step.output_key) this.state.context[step.output_key] = scriptResult;
+                // The script now receives the whole context to work with
+                const scriptResult = await this.runScript(step.name, this.state.context);
+                if (step.output_key) {
+                    this.state.context[step.output_key] = scriptResult;
                 }
                 break;
 

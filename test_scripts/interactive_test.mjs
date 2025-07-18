@@ -16,9 +16,11 @@ const question = (prompt) => {
   });
 };
 
-const API_URL = 'http://localhost:3000';
+const API_PORT = process.env.API_PORT || 3000;
+const API_URL = `http://localhost:${API_PORT}`;
 
 async function postToApi(endpoint, body) {
+  console.log(`Enviando a: ${API_URL}${endpoint}`); // Log para depuración
   try {
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',

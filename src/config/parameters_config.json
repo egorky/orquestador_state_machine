@@ -33,6 +33,11 @@
                 "prompt": "De la respuesta del usuario, y de la lista de ciudades en el contexto, extrae el ID de la ciudad. Responde en un JSON con la clave 'city_id'."
             },
             {
+                "tool": "script",
+                "name": "find_city_name",
+                "output_key": "city_name"
+            },
+            {
                 "tool": "validate",
                 "parameter": "city"
             }
