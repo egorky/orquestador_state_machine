@@ -155,13 +155,23 @@ class ConversationOrchestrator {
                         const ai_result = await this.executeStep(step, userInput);
                         logger.debug(`AI Result: ${JSON.stringify(ai_result)}`, this.logContext);
 
-                        if(ai_result.new_intent) {
+                        if (ai_result.new_intent) {
                             this.state.current_flow = ai_result.new_intent;
-                            this.state.status = 'AWAITING_INTENT'; // Reset status
-                            return await this.processUserInput(userInput); // Re-process for the new intent
+                            logger.info(`User changed intent to: ${this.state.current_flow}`, this.logContext);
+
+                            // Handle specific intents immediately
+                            if (this.state.current_flow === 'talk_to_agent') {
+                                return { final_message: "Entendido. Le transferiré con un agente humano." };
+                            }
+
+                            // For other intents, reset and find the first parameter
+                            this.state.collected_params = { intent: this.state.current_flow };
+                            this.state.context = { intent: this.state.current_flow };
+                            this.moveToNextParameter(); // Find the first param of the new flow
+                            break; // Exit the loop and prepare the next question
                         }
 
-                        if(ai_result.changed_params && Object.keys(ai_result.changed_params).length > 0) {
+                        if (ai_result.changed_params && Object.keys(ai_result.changed_params).length > 0) {
                             const changedParamName = Object.keys(ai_result.changed_params)[0].replace('_id','');
                             this.invalidateDependentParams(changedParamName);
                             Object.assign(this.state.collected_params, ai_result.changed_params);
