@@ -4,22 +4,25 @@ const fetch = require('node-fetch');
 const { VM } = require('vm2');
 const redisClient = require('../lib/redis_client');
 const geminiClient = require('./gemini_client');
+const logger = require('../lib/logger');
 
 class ConversationOrchestrator {
-    constructor(sessionId) {
+    constructor(sessionId, initialContext = {}) {
         this.sessionId = sessionId;
         this.state = {};
         this.configs = {};
+        this.initialContext = initialContext;
+        this.logContext = { sessionId, callerId: initialContext.callerId };
     }
 
     async initialize() {
         const loadedState = await redisClient.loadData(this.sessionId);
         this.state = loadedState || {
             collected_params: {},
-            context: {},
+            context: { ...this.initialContext }, // Pass initial context
             current_flow: null,
             current_parameter: null,
-            status: 'AWAITING_INTENT' // NEW: Explicit status
+            status: 'AWAITING_INTENT'
         };
 
         const configPath = path.join(__dirname, '..', 'config');

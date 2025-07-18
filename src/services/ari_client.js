@@ -1,5 +1,6 @@
 const ari = require('ari-client');
 const ConversationOrchestrator = require('./orchestrator');
+const logger = require('../lib/logger');
 require('dotenv').config();
 
 const ARI_URL = process.env.ARI_URL;
@@ -29,55 +30,49 @@ function waitForChannelVar(channel, varName) {
 
 async function handleStasisStart(event, channel) {
     const sessionId = event.channel.id;
-    console.log(`[ARI] New call session started: ${sessionId}`);
-    const orchestrator = new ConversationOrchestrator(sessionId);
+    const callerId = event.channel.caller.number;
+    const logContext = { sessionId, callerId };
+
+    logger.info(`New call session started.`, logContext);
+    const orchestrator = new ConversationOrchestrator(sessionId, { callerId });
 
     try {
         await channel.answer();
-        console.log(`[ARI] Channel ${sessionId} answered.`);
+        logger.info(`Channel answered.`, logContext);
 
-        // Start the conversation and get the first prompt
         let response = await orchestrator.startConversation();
-        console.log(`[ARI] Initial response for ${sessionId}:`, response);
+        logger.info(`Initial response: ${JSON.stringify(response)}`, logContext);
 
         while (response && response.next_prompt) {
-            // Set the response text for the dialplan (e.g., for TTS)
             await channel.setChannelVar({ variable: 'RESPONSE_TEXT', value: response.next_prompt });
-            console.log(`[ARI] [${sessionId}] Set RESPONSE_TEXT: ${response.next_prompt}`);
+            logger.info(`Set RESPONSE_TEXT: ${response.next_prompt}`, logContext);
 
-            // Signal to the dialplan that we are ready for user input
             await channel.setChannelVar({ variable: 'ORCHESTRATOR_READY', value: '1' });
 
-            // Wait for the user's input from the dialplan (e.g., from an AGI script with STT)
-            console.log(`[ARI] [${sessionId}] Waiting for USER_INPUT...`);
+            logger.info(`Waiting for USER_INPUT...`, logContext);
             const userInput = await waitForChannelVar(channel, 'USER_INPUT');
-            console.log(`[ARI] [${sessionId}] Received USER_INPUT: ${userInput}`);
+            logger.info(`Received USER_INPUT: ${userInput}`, logContext);
 
-            // We got input, so we are no longer ready for more.
             await channel.setChannelVar({ variable: 'ORCHESTRATOR_READY', value: '0' });
 
-            // Process the user's input
             response = await orchestrator.processUserInput(userInput);
-            console.log(`[ARI] [${sessionId}] Response after user input:`, response);
+            logger.info(`Response after user input: ${JSON.stringify(response)}`, logContext);
         }
 
         if (response && response.final_message) {
-            console.log(`[ARI] [${sessionId}] Sending final message: ${response.final_message}`);
+            logger.info(`Sending final message: ${response.final_message}`, logContext);
             await channel.setChannelVar({ variable: 'RESPONSE_TEXT', value: response.final_message });
-             // Signal that the conversation is over.
             await channel.setChannelVar({ variable: 'CONVERSATION_DONE', value: '1' });
         }
 
     } catch (error) {
-        console.error(`[ARI] [${sessionId}] Error in conversation handler:`, error);
+        logger.error(`Error in conversation handler: ${error.message}`, logContext);
     } finally {
-        // Ensure the channel is hung up if it's still active
         try {
-            console.log(`[ARI] [${sessionId}] Hanging up channel.`);
+            logger.info(`Hanging up channel.`, logContext);
             await channel.hangup();
         } catch (hangupError) {
-            // The channel might have already been hung up, which is fine.
-            console.warn(`[ARI] [${sessionId}] Could not hang up channel, it might have been hung up already.`, hangupError.message);
+            logger.warn(`Could not hang up channel, it might have been hung up already: ${hangupError.message}`, logContext);
         }
     }
 }
@@ -85,16 +80,16 @@ async function handleStasisStart(event, channel) {
 async function start() {
     try {
         const client = await ari.connect(ARI_URL, ARI_USERNAME, ARI_PASSWORD);
-        console.log(`[ARI] Connected to ARI at ${ARI_URL}`);
+        logger.info(`Connected to ARI at ${ARI_URL}`);
 
         client.on('StasisStart', handleStasisStart);
 
         await client.start(ARI_APP_NAME);
-        console.log(`[ARI] ARI application '${ARI_APP_NAME}' started.`);
+        logger.info(`ARI application '${ARI_APP_NAME}' started.`);
 
     } catch (err) {
-        console.error('[ARI] Error connecting to or starting ARI client:', err);
-        process.exit(1); // Exit if we can't connect to ARI
+        logger.error(`Error connecting to or starting ARI client: ${err.message}`);
+        process.exit(1);
     }
 }
 

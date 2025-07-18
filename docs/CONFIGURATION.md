@@ -105,24 +105,72 @@ Define los detalles de las APIs externas que el orquestador puede invocar.
 
 ## 4. `scripts_config.json`
 
-Define pequeños fragmentos de código JavaScript para la transformación de datos.
+Define pequeños fragmentos de código JavaScript que pueden ser ejecutados por el orquestador para realizar transformaciones de datos, cálculos o lógica condicional simple.
+
+### Estructura
 
 -   **`scripts`**: Un array de objetos, donde cada objeto representa un script.
     -   `name`: Un nombre único para el script.
-    -   `function_body`: El cuerpo de la función JavaScript. La función recibe un argumento `data` (que corresponde al `input_key` del paso del script) y debe devolver el valor transformado. **Nota**: El `return` es implícito.
+    -   `function_body`: Una cadena de texto que contiene el cuerpo de una función JavaScript.
 
-**Ejemplo:**
+### Contexto de Ejecución
 
-```json
-{
-    "scripts": [
-        {
-            "name": "format_cities_list",
-            "function_body": "return cities.map(c => c.city_name).join(', ');"
-        }
-    ]
-}
-```
+-   Cada script se ejecuta en un entorno de sandbox seguro (usando `vm2`).
+-   El script tiene acceso a un objeto global llamado `context`, que es una referencia directa al objeto `state.context` de la conversación actual.
+-   Esto significa que puedes leer cualquier dato que se haya guardado previamente en el contexto (desde llamadas a API, extracciones de IA, etc.) y también puedes modificarlo, aunque se recomienda que los scripts devuelvan valores y que el resultado se asigne a una nueva clave del contexto mediante el `output_key` en el paso del `parameters_config.json`.
+-   La última expresión evaluada en el `function_body` es el valor de retorno del script.
+
+### Ejemplos de Uso
+
+#### Ejemplo 1: Formatear una Lista para Presentación
+
+Útil para tomar un array de objetos de una API y convertirlo en una cadena legible para el usuario.
+
+-   **`function_body`**:
+    ```javascript
+    "return context.cities_data.map(c => c.city_name).join(', ');"
+    ```
+-   **Uso**: En `parameters_config.json`, un `pre_ask_step` para `city` podría usar este script para generar la lista de ciudades a mostrar en la pregunta.
+
+#### Ejemplo 2: Encontrar un Valor Específico en un Array
+
+Después de que la IA extrae un ID, este script puede encontrar el objeto completo correspondiente y extraer un dato específico (como el nombre).
+
+-   **`function_body`**:
+    ```javascript
+    "const city = context.cities_data.find(c => c.city_id === context.city_id); return city ? city.city_name : '';"
+    ```
+-   **Uso**: En `parameters_config.json`, un `post_ask_step` para `city` lo usaría para guardar `city_name` en el contexto, permitiendo que la siguiente pregunta sea personalizada (ej. "Perfecto. ¿En qué sucursal de **Quito**...?").
+
+#### Ejemplo 3: Realizar un Cálculo Simple
+
+Puedes realizar cálculos basados en los datos recolectados.
+
+-   **`function_body`**:
+    ```javascript
+    "const subtotal = context.product_price * context.quantity; return subtotal;"
+    ```
+-   **Uso**: Para un flujo de e-commerce, después de recolectar `product_price` y `quantity`, un script podría calcular el `subtotal` y guardarlo en el contexto.
+
+#### Ejemplo 4: Lógica Condicional Simple
+
+Puedes devolver diferentes valores basados en una condición.
+
+-   **`function_body`**:
+    ```javascript
+    "const birth_year = parseInt(context.id_number.substring(0, 4)); const current_year = new Date().getFullYear(); const age = current_year - birth_year; return age < 18 ? 'menor_de_edad' : 'mayor_de_edad';"
+    ```
+-   **Uso**: Podría usarse para determinar si un usuario es menor de edad y dirigir el flujo de la conversación en consecuencia (aunque la lógica de ramificación más compleja debería manejarse en el orquestador).
+
+#### Ejemplo 5: Transformación de Datos Compleja
+
+Combinar varios datos del contexto para crear una nueva estructura.
+
+-   **`function_body`**:
+    ```javascript
+    "const userProfile = { nombre_completo: `${context.nombres} ${context.apellidos}`, telefono: context.numero_telefono, ciudad: context.ciudad_residencia }; return JSON.stringify(userProfile);"
+    ```
+-   **Uso**: Al final de un flujo de recolección de datos, un script podría ensamblar un objeto de perfil de usuario y prepararlo para ser enviado a una API.
 
 ## 5. `intents_config.json`
 

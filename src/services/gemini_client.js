@@ -1,4 +1,5 @@
 const { GoogleGenAI } = require("@google/genai");
+const logger = require('../lib/logger');
 require('dotenv').config();
 
 const ai = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
@@ -34,32 +35,26 @@ async function extractParameter(prompt, textToAnalyze, context = {}) {
     Responde únicamente con un objeto JSON.
   `;
 
-  console.log("Enviando a Gemini:", JSON.stringify({ model: modelName, contents: fullPrompt }, null, 2));
+  logger.debug(`Enviando a Gemini: ${fullPrompt}`);
 
   try {
-    const response = await ai.models.generateContent({
-        model: modelName,
-        contents: fullPrompt,
-    });
+    const result = await ai.getGenerativeModel({ model: modelName }).generateContent(fullPrompt);
+    const response = result.response;
+    const text = response.text();
 
-    console.log("Respuesta de Gemini (raw):", JSON.stringify(response, null, 2));
+    logger.debug(`Respuesta de Gemini (raw): ${text}`);
 
-    const text = response.text;
-    console.log("Texto extraído de Gemini:", text);
-
-    // A veces, Gemini devuelve el JSON dentro de un bloque de código markdown.
-    // Esta expresión regular lo extrae.
     const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+    let parsedJson;
     if (jsonMatch && jsonMatch[1]) {
-        const parsedJson = JSON.parse(jsonMatch[1].trim());
-        console.log("JSON parseado (from markdown):", parsedJson);
-        return parsedJson;
+        parsedJson = JSON.parse(jsonMatch[1].trim());
+    } else {
+        parsedJson = JSON.parse(text.trim());
     }
-    const parsedJson = JSON.parse(text.trim());
-    console.log("JSON parseado:", parsedJson);
+    logger.debug(`JSON parseado: ${JSON.stringify(parsedJson)}`);
     return parsedJson;
   } catch (error) {
-    console.error("Error al llamar a la API de Gemini:", error);
+    logger.error(`Error al llamar a la API de Gemini: ${error.message}`);
     return null;
   }
 }
