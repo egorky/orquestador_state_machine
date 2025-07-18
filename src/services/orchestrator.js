@@ -158,16 +158,20 @@ class ConversationOrchestrator {
                             this.state.current_flow = ai_result.new_intent;
                             logger.info(`User changed intent to: ${this.state.current_flow}`, this.logContext);
 
-                            // Handle specific intents immediately
-                            if (this.state.current_flow === 'talk_to_agent') {
-                                return { final_message: "Entendido. Le transferiré con un agente humano." };
+                            const newFlow = this.configs.flows.flows[this.state.current_flow];
+
+                            // Reset context for the new flow
+                            this.state.collected_params = { intent: this.state.current_flow };
+                            this.state.context = { ...this.initialContext, intent: this.state.current_flow };
+
+                            if (!newFlow.initial_parameter) {
+                                // This is a single-shot intent like "talk_to_agent"
+                                // We can define a final message in the flow config itself
+                                return { final_message: newFlow.final_message || "Entendido." };
                             }
 
-                            // For other intents, reset and find the first parameter
-                            this.state.collected_params = { intent: this.state.current_flow };
-                            this.state.context = { intent: this.state.current_flow };
-                            this.moveToNextParameter(); // Find the first param of the new flow
-                            break; // Exit the loop and prepare the next question
+                            this.moveToNextParameter();
+                            break;
                         }
 
                         if (ai_result.changed_params && Object.keys(ai_result.changed_params).length > 0) {

@@ -37,5 +37,13 @@
             { "tool": "script", "name": "format_available_times_list", "output_key": "available_times_list" }
         ],
         "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "appointment_id": {
+        "question": "Entendido. Por favor, deme el número de identificación de la cita que desea cancelar.",
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "cancellation_reason": {
+        "question": "¿Cuál es el motivo de la cancelación?",
+        "post_ask_steps": [{ "tool": "ai" }]
     }
 }
