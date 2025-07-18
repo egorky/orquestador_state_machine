@@ -79,52 +79,6 @@ class ConversationOrchestrator {
     }
 
     /**
-     * @description Applies validation rules to the extracted data.
-     * @param {object} extracted - The data extracted by the AI.
-     * @param {Array<object>} rules - The validation rules to apply.
-     * @param {object} context - The current conversation context.
-     * @returns {{valid: boolean, message?: string}} The validation result.
-     */
-    async applyValidation(extracted, rules, context) {
-        for (const rule of rules) {
-            if (rule.type === "regex") {
-                const value = Object.values(extracted)[0];
-                if (!new RegExp(rule.pattern).test(String(value))) {
-                    console.log(`Validation failed: ${rule.error_message}`);
-                    return { valid: false, message: rule.error_message };
-                }
-            } else if (rule.type === "in_list") {
-                const sourceKey = Object.keys(context).find(k => k.includes(rule.source));
-                const sourceData = context[sourceKey] || [];
-                if (!Array.isArray(sourceData)) {
-                    console.log(`Validation failed: source data for ${rule.source} is not an array.`);
-                    return { valid: false, message: "Error interno de validación." };
-                }
-                const key = rule.key;
-                const value = extracted[key];
-
-                if (!sourceData.some(item => String(item[key]) === String(value))) {
-                    console.log(`Validation failed: ${rule.error_message}`);
-                    return { valid: false, message: rule.error_message };
-                }
-            } else if (rule.type === "in_list_simple") {
-                const sourceKey = Object.keys(context).find(k => k.includes(rule.source));
-                const sourceData = context[sourceKey] || [];
-                 if (!Array.isArray(sourceData)) {
-                    console.log(`Validation failed: source data for ${rule.source} is not an array.`);
-                    return { valid: false, message: "Error interno de validación." };
-                }
-                const value = Object.values(extracted)[0];
-                if (!sourceData.includes(value)) {
-                    console.log(`Validation failed: ${rule.error_message}`);
-                    return { valid: false, message: rule.error_message };
-                }
-            }
-        }
-        return { valid: true };
-    }
-
-    /**
      * @description Calls an external API.
      * @param {string} apiName - The name of the API to call.
      * @param {object} inputData - The data to send to the API.
@@ -169,48 +123,17 @@ class ConversationOrchestrator {
     /**
      * @description Processes a single step in the execution sequence for a parameter.
      * @param {object} step - The step to process.
-     * @param {string} response - The user's response.
-     * @param {object} context - The current conversation context.
-     * @returns {Promise<object>} The updated context or an error object.
+     * @returns {Promise<void>}
      */
-    async processStep(step, response, context) {
+    async processStep(step) {
         if (step.tool === "api_call") {
             const inputData = step.input_keys ? Object.fromEntries(
                 step.input_keys.map(key => [key, this.state.context[key]])
             ) : {};
             const result = await this.callApi(step.api, inputData);
-            context[step.output_key] = result;
-        } else if (step.tool === "ai_extract") {
-            const extracted = await geminiClient.extractParameter(step.prompt, response, context);
-            context.extracted = extracted;
-            if (!extracted) return null;
-            return extracted;
-        } else if (step.tool === "validate") {
-            const validation = this.validationsConfig.validations.find(val => val.parameter === step.validation);
-            if (validation) {
-                const validationResult = await this.applyValidation(context.extracted, validation.rules, context);
-                if (!validationResult.valid) {
-                    return { error: validationResult.message };
-                }
-            }
-        } else if (step.tool === 'decision') {
-            const value = this.state.context[step.on];
-            const decisionCase = step.cases.find(c => c.equals === value);
-            if (decisionCase) {
-                this.state.currentParameter = decisionCase.next_parameter;
-            } else {
-                this.state.currentParameter = step.default;
-            }
-        } else if (step.tool === 'script') {
-            const script = this.scriptsConfig.scripts.find(s => s.name === step.script);
-            if (script) {
-                const args = step.input_keys.map(key => this.state.context[key]);
-                const func = new Function(...step.input_keys, script.function_body);
-                const result = func(...args);
-                context[step.output_key] = result;
-            }
+            this.state.context[step.output_key] = result;
         }
-        return context;
+        // Add other tools like 'validate', 'script', 'decision' here if needed for pre-fetching
     }
 
     /**
@@ -295,11 +218,10 @@ class ConversationOrchestrator {
                     return { final_message: "Entendido. Le transferiré con un agente humano." };
                 }
             } else {
-                // Try to extract parameters even if intent is not clear
                 const extractedParams = await this.extractAllParameters(response);
                 if (extractedParams && Object.keys(extractedParams).length > 0) {
-                    this.state.currentFlow = 'scheduling'; // Assume scheduling if params are detected
-                    this.state.collected.intent = true; // Mark intent as collected
+                    this.state.currentFlow = 'scheduling';
+                    this.state.collected.intent = true;
                 } else {
                     return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
                 }
@@ -333,9 +255,8 @@ class ConversationOrchestrator {
 
         this.state.currentParameter = currentParam ? currentParam.name : null;
 
-        await this.saveState();
-
         if (!this.state.currentParameter) {
+            await this.saveState();
             return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
         }
 
@@ -345,15 +266,15 @@ class ConversationOrchestrator {
         const nextSequence = this.executionSequences.find(seq => seq.parameter === nextParam.name);
         if (nextSequence) {
             for (const step of nextSequence.steps) {
-                // We only care about api_calls for pre-fetching
                 if (step.tool === 'api_call') {
-                    await this.processStep(step, '', this.state.context);
+                    await this.processStep(step);
                 }
             }
         }
 
+        await this.saveState();
+
         let question = nextParam.question;
-        // Replace placeholders in the question
         const placeholders = question.match(/\{(\w+)\}/g);
         if (placeholders) {
             placeholders.forEach(placeholder => {
@@ -362,7 +283,6 @@ class ConversationOrchestrator {
                 question = question.replace(placeholder, value);
             });
         }
-
 
         return { next_prompt: question, collected_params: this.state.context };
     }
@@ -373,8 +293,6 @@ class ConversationOrchestrator {
      */
     async startConversation() {
         await this.initialize();
-        // The first message from the user will determine the intent.
-        // So, we just return a generic welcome message.
         return { next_prompt: "Hola, soy tu asistente virtual. ¿Cómo puedo ayudarte hoy?" };
     }
 }
