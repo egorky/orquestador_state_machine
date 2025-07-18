@@ -56,6 +56,8 @@ class ConversationOrchestrator {
         const api = this.configs.apis.apis.find(a => a.name === apiName);
         if (!api) throw new Error(`API '${apiName}' not found.`);
 
+        logger.debug(`Calling API: ${apiName} with input: ${JSON.stringify(inputData)}`, this.logContext);
+
         const mockApiPort = process.env.MOCK_API_PORT || 3001;
         let endpoint = api.endpoint.replace("http://127.0.0.1:3001", `http://127.0.0.1:${mockApiPort}`);
         const options = { method: api.method, headers: api.headers };
@@ -67,8 +69,14 @@ class ConversationOrchestrator {
         }
 
         const response = await fetch(endpoint, options);
-        if (!response.ok) throw new Error(`API call to ${apiName} failed with status ${response.status}`);
-        return response.json();
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`API call to ${apiName} failed with status ${response.status}: ${errorBody}`);
+        }
+
+        const responseData = await response.json();
+        logger.debug(`API ${apiName} response: ${JSON.stringify(responseData)}`, this.logContext);
+        return responseData;
     }
 
     async executeStep(step, userInput = null) {
@@ -86,10 +94,11 @@ class ConversationOrchestrator {
                 break;
 
             case 'script':
-                // The script now receives the whole context to work with
+                logger.debug(`Executing script: ${step.name}`, this.logContext);
                 const scriptResult = await this.runScript(step.name, this.state.context);
                 if (step.output_key) {
                     this.state.context[step.output_key] = scriptResult;
+                    logger.debug(`Script ${step.name} output [${step.output_key}]: ${JSON.stringify(scriptResult)}`, this.logContext);
                 }
                 break;
 

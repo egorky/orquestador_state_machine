@@ -1,98 +1,80 @@
 # Orquestador de Conversaciones Inteligente
 
-Este proyecto implementa un orquestador de conversaciones inteligente capaz de guiar a un usuario a través de un flujo predefinido, como agendar una cita médica. El orquestador se integra con la API de Google Gemini para el procesamiento de lenguaje natural, utiliza Redis para mantener el estado de la conversación y puede ser expuesto como una API REST o un cliente ARI para Asterisk.
+Este proyecto es un orquestador de conversaciones altamente configurable, diseñado para gestionar diálogos interactivos a través de múltiples canales. Utiliza Google Gemini para el procesamiento de lenguaje natural, Redis para la gestión de estado y puede operar simultáneamente como una API REST y un cliente ARI para Asterisk.
 
-## Características
+## Características Principales
 
-- **Flujo de Conversación Configurable**: El flujo de la conversación, los parámetros a recolectar y las herramientas a utilizar se definen en archivos JSON, lo que permite una fácil personalización.
-- **Integración con Google Gemini**: Utiliza el modelo Gemini para extraer información relevante de las respuestas del usuario.
-- **Persistencia de Estado con Redis**: Guarda el estado de cada conversación en Redis, permitiendo que el sistema sea escalable y sin estado.
-- **Exposición Dual (API/ARI)**: Puede funcionar como un servidor API REST o como un cliente ARI para integrarse con una central telefónica Asterisk.
-- **API Simulada para Pruebas**: Incluye una API simulada para probar el flujo de conversación sin necesidad de servicios externos reales.
+-   **Motor de Flujo Dinámico**: Define flujos de conversación complejos, incluyendo llamadas a APIs, ejecución de scripts y procesamiento de IA, todo a través de archivos de configuración JSON.
+-   **Procesamiento de Lenguaje Natural**: Integrado con Google Gemini para una robusta detección de intenciones y extracción de parámetros.
+-   **Persistencia de Estado**: Utiliza Redis para mantener el estado de cada conversación, lo que permite diálogos largos y resilientes.
+-   **Doble Interfaz (API y ARI)**: Funciona como un servidor API REST para integraciones con chatbots y aplicaciones, y como un cliente ARI para manejar llamadas telefónicas a través de Asterisk.
+-   **Logging Concurrente**: Sistema de logs enriquecido con Timestamps, Session IDs y Caller IDs para facilitar la depuración en entornos con múltiples conversaciones simultáneas.
+-   **Entorno de Pruebas**: Incluye un servidor de API simulado y un script de prueba interactivo para un desarrollo y depuración eficientes.
 
-## Estructura del Proyecto
+## Requisitos
 
-```
-.
-├── .env.example
-├── package.json
-├── Readme.md
-├── src
-│   ├── config
-│   │   ├── apis_config.json
-│   │   ├── execution_order_config.json
-│   │   ├── parameters_config.json
-│   │   └── validations_config.json
-│   ├── lib
-│   │   └── redis_client.js
-│   ├── services
-│   │   ├── ari_client.js
-│   │   ├── gemini_client.js
-│   │   └── orchestrator.js
-│   ├── mock_api.js
-│   └── server.js
-└── docs
-    ├── genai.md
-    ├── genaijs.txt
-    └── README_old.md
-```
+-   Node.js (v18 o superior)
+-   Redis
+-   (Opcional) Un servidor Asterisk para la funcionalidad de ARI
 
 ## Instalación
 
-1.  Clona el repositorio:
+1.  **Clonar el repositorio:**
     ```bash
     git clone <repository-url>
     cd <repository-directory>
     ```
 
-2.  Instala las dependencias:
+2.  **Instalar dependencias:**
     ```bash
     npm install
     ```
 
-3.  Crea un archivo `.env` a partir del ejemplo y configúralo con tus credenciales:
+3.  **Configurar el entorno:**
+    Copia el archivo de ejemplo `.env.example` a un nuevo archivo llamado `.env`.
     ```bash
     cp .env.example .env
     ```
-    Edita el archivo `.env` con tu clave de API de Google Gemini y la configuración de Redis, API y ARI.
+    Abre el archivo `.env` y edita las siguientes variables:
+
+    -   `GEMINI_API_KEY`: Tu clave de API para Google Gemini.
+    -   `API_ENABLED` / `ARI_ENABLED`: Pon en `true` la interfaz que desees activar.
+    -   `API_PORT`: El puerto para el servidor API (ej. 3010).
+    -   `REDIS_URL`: La URL de conexión a tu servidor Redis.
+    -   `LOG_LEVEL`: La variable más importante para la depuración.
+        -   `info` (o si se deja en blanco): Muestra solo los logs operativos estándar.
+        -   `debug`: **Recomendado para desarrollo.** Muestra logs muy detallados, incluyendo los prompts enviados a Gemini y las respuestas crudas de las APIs.
 
 ## Uso
 
-### Ejecutar el Servidor Principal
+### Iniciar el Servidor
 
-Para iniciar el servidor (que a su vez puede levantar la API, el cliente ARI y la API simulada, según la configuración en `.env`):
-
+Para iniciar el servidor con logs de depuración (recomendado):
 ```bash
-npm start
+LOG_LEVEL=debug npm start
 ```
 
-### Ejecutar la API Simulada de forma independiente
-
-Si deseas ejecutar solo la API simulada para pruebas:
-
+O, para desarrollo con reinicio automático:
 ```bash
-npm run mock:api
+LOG_LEVEL=debug npm run dev
 ```
 
-### Probar con `curl`
+### Probar con el Script Interactivo
 
-Puedes probar la API del orquestador utilizando `curl`.
+La mejor manera de probar el sistema es con el script interactivo. Asegúrate de que el servidor esté corriendo y ejecuta en otra terminal:
 
-1.  **Iniciar una conversación**:
-    ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123"}' http://localhost:3000/start_conversation
-    ```
-    Esto devolverá la primera pregunta del flujo.
+```bash
+# Asegúrate de que el puerto coincida con el de tu .env
+API_PORT=3010 node test_scripts/interactive_test.mjs
+```
+El script te guiará a través de la conversación, permitiéndote escribir las respuestas del "humano" en cada paso.
 
-2.  **Enviar la respuesta del usuario**:
-    ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{"sessionId": "test-session-123", "userInput": "Mi cédula es 0987654321"}' http://localhost:3000/conversation
-    ```
-    Esto procesará la respuesta y devolverá la siguiente pregunta o el resultado final.
+## Documentación Detallada
 
-## Configuración
+Para una comprensión más profunda de la arquitectura, la estructura de archivos y la configuración de flujos, por favor consulta la carpeta `/docs`:
 
--   **`src/config/parameters_config.json`**: Define los parámetros que el orquestador debe recolectar.
--   **`src/config/apis_config.json`**: Define las APIs externas que el sistema puede llamar.
--   **`src/config/execution_order_config.json`**: Especifica el orden de ejecución de las herramientas (API, IA, validación) para cada parámetro.
--   **`src/config/validations_config.json`**: Define las reglas de validación para los datos extraídos.
+-   **`docs/ARCHITECTURE.md`**: Visión general de la arquitectura del sistema.
+-   **`docs/FILE_STRUCTURE.md`**: Explicación de cada archivo y directorio.
+-   **`docs/CONFIGURATION.md`**: **Lectura obligatoria.** Guía detallada de todos los archivos de configuración JSON para crear tus propios flujos.
+-   **`docs/USAGE.md`**: Ejemplos de uso de la API REST y directrices para la integración con el dialplan de Asterisk.
+-   **`docs/LIBRARIES.md`**: Documentación de las librerías internas.
