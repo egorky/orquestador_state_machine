@@ -28,7 +28,6 @@ class ConversationOrchestrator {
         this.configs = {
             parameters: JSON.parse(await fs.readFile(path.join(configPath, "parameters_config.json"), "utf8")),
             apis: JSON.parse(await fs.readFile(path.join(configPath, "apis_config.json"), "utf8")),
-            validations: JSON.parse(await fs.readFile(path.join(configPath, "validations_config.json"), "utf8")),
             flows: JSON.parse(await fs.readFile(path.join(configPath, "flows_config.json"), "utf8")),
             scripts: JSON.parse(await fs.readFile(path.join(configPath, "scripts_config.json"), "utf8")),
             intents: JSON.parse(await fs.readFile(path.join(configPath, "intents_config.json"), "utf8")),

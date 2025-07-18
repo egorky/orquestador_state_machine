@@ -43,7 +43,7 @@ Este es el archivo de configuración central. Define los detalles de cada parám
 
 Cada elemento en `pre_ask_steps` y `post_ask_steps` es un objeto "paso" con la siguiente estructura:
 
--   **`tool`**: La herramienta a utilizar. Valores posibles: `"api"`, `"script"`, `"ai"`, `"validate"`.
+-   **`tool`**: La herramienta a utilizar. Valores posibles: `"api"`, `"script"`, `"ai"`.
 -   **Propiedades adicionales**: Dependen de la herramienta seleccionada.
 
 #### Herramienta `api`
@@ -61,10 +61,6 @@ Cada elemento en `pre_ask_steps` y `post_ask_steps` es un objeto "paso" con la s
 #### Herramienta `ai`
 
 -   **`prompt`**: El prompt que se enviará a Gemini. El orquestador añadirá automáticamente la respuesta del usuario y el contexto actual.
-
-#### Herramienta `validate`
-
--   **`parameter`**: El nombre del parámetro a validar (debe coincidir con un nombre en `validations_config.json`).
 
 **Ejemplo (`city`):**
 
@@ -181,13 +177,3 @@ Define las intenciones que el sistema puede detectar.
     -   `description`: Una descripción de lo que representa la intención, usada en el prompt de Gemini.
     -   `keywords` (Opcional): Palabras clave que pueden ayudar a la detección (actualmente no se usan en el prompt, pero son útiles para referencia).
 
-## 6. `validations_config.json`
-
-Define las reglas para validar los datos extraídos. (La lógica de validación aún no está completamente implementada en `orchestrator.js`).
-
--   **`validations`**: Un array de objetos, uno por cada parámetro que requiere validación.
-    -   `parameter`: El nombre del parámetro.
-    -   `rules`: Un array de reglas de validación.
-        -   `type`: El tipo de validación (ej. "regex", "in_list").
-        -   `pattern`, `source`, etc.: Propiedades específicas del tipo de regla.
-        -   `error_message`: El mensaje a devolver si la validación falla.
