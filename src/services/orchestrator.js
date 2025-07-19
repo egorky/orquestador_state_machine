@@ -165,15 +165,32 @@ class ConversationOrchestrator {
                 }
                 break;
             case 'ai':
-                const promptTemplate = this.configs.prompts.main_prompt_template.join('\n');
+                const promptId = step.prompt_id || 'default';
+                const promptTemplateText = this.configs.prompts.prompts[promptId];
+                if (!promptTemplateText) {
+                    throw new Error(`Prompt with id '${promptId}' not found in prompts_config.json`);
+                }
+
+                let promptTemplate = promptTemplateText.join('\n');
+                if (step.prompt_append) {
+                    promptTemplate += "\n\n" + step.prompt_append;
+                }
+
+                const now = new Date();
+                const currentDate = now.toISOString().split('T')[0];
+                const currentTime = now.toTimeString().split(' ')[0];
+
                 const availableIntents = Object.keys(this.configs.flows.flows).join(', ');
                 const prompt = promptTemplate
-                    .replace('{current_flow}', this.state.current_flow)
-                    .replace('{current_parameter}', this.state.current_parameter)
-                    .replace('{available_intents}', availableIntents)
-                    .replace('{collected_params}', JSON.stringify(this.state.collected_params))
-                    .replace('{context}', JSON.stringify(this.state.context))
-                    .replace('{user_input}', userInput);
+                    .replace(/\{current_date\}/g, currentDate)
+                    .replace(/\{current_time\}/g, currentTime)
+                    .replace(/\{current_flow\}/g, this.state.current_flow)
+                    .replace(/\{current_parameter\}/g, this.state.current_parameter)
+                    .replace(/\{available_intents\}/g, availableIntents)
+                    .replace(/\{collected_params\}/g, JSON.stringify(this.state.collected_params))
+                    .replace(/\{context\}/g, JSON.stringify(this.state.context))
+                    .replace(/\{user_input\}/g, userInput);
+
                 const aiResult = await geminiClient.extractParameter(prompt, userInput, this.state.context);
                 return aiResult;
         }

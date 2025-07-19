@@ -60,7 +60,8 @@ Cada elemento en `pre_ask_steps` y `post_ask_steps` es un objeto "paso" con la s
 
 #### Herramienta `ai`
 
--   **`prompt`**: El prompt que se enviará a Gemini. El orquestador añadirá automáticamente la respuesta del usuario y el contexto actual.
+-   **`prompt_id`** (Opcional): El ID de la plantilla de prompt a utilizar de `prompts_config.json`. Si se omite, se usará la plantilla con ID `"default"`.
+-   **`prompt_append`** (Opcional): Una cadena de texto o un array de cadenas que se añadirá al final de la plantilla de prompt seleccionada. Útil para añadir instrucciones específicas para un paso concreto.
 
 **Ejemplo (`city`):**
 
@@ -176,6 +177,26 @@ Define las intenciones que el sistema puede detectar.
     -   `name`: Un nombre único para la intención.
     -   `description`: Una descripción de lo que representa la intención, usada en el prompt de Gemini.
     -   `keywords` (Opcional): Palabras clave que pueden ayudar a la detección (actualmente no se usan en el prompt, pero son útiles para referencia).
+
+## 6. `prompts_config.json`
+
+Define las diferentes plantillas de prompts que la herramienta `ai` puede utilizar.
+
+-   **`prompts`**: Un objeto donde cada clave es un ID de prompt único (ej. "default", "date_time_extraction").
+    -   El valor de cada clave es un array de cadenas de texto, que juntas forman la plantilla del prompt.
+
+### Placeholders Automáticos
+
+Dentro de cualquier plantilla de prompt, puedes usar los siguientes placeholders, que el orquestador reemplazará automáticamente antes de enviar el prompt a la IA:
+
+-   `{current_date}`: La fecha actual en formato `YYYY-MM-DD`.
+-   `{current_time}`: La hora actual en formato `HH:MM:SS`.
+-   `{current_flow}`: El nombre del flujo de conversación actual.
+-   `{current_parameter}`: El nombre del parámetro que se está pidiendo actualmente.
+-   `{available_intents}`: Una lista de todas las intenciones posibles, separadas por comas.
+-   `{collected_params}`: Un objeto JSON con todos los parámetros que ya han sido recolectados.
+-   `{context}`: Un objeto JSON con todo el contexto de la conversación (incluyendo datos de API, resultados de scripts, etc.).
+-   `{user_input}`: La respuesta literal que dio el usuario en el último turno.
 
 ## 6. Guía Avanzada para Llamadas a API
 
