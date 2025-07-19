@@ -30,7 +30,6 @@ class ConversationOrchestrator {
             apis: JSON.parse(await fs.readFile(path.join(configPath, "apis_config.json"), "utf8")),
             flows: JSON.parse(await fs.readFile(path.join(configPath, "flows_config.json"), "utf8")),
             scripts: JSON.parse(await fs.readFile(path.join(configPath, "scripts_config.json"), "utf8")),
-            intents: JSON.parse(await fs.readFile(path.join(configPath, "intents_config.json"), "utf8")),
             prompts: JSON.parse(await fs.readFile(path.join(configPath, "prompts_config.json"), "utf8")),
         };
     }
@@ -363,12 +362,15 @@ class ConversationOrchestrator {
     }
 
     async detectIntent(userInput) {
-        const promptConfig = this.configs.intents;
+        const flows = this.configs.flows.flows;
+        const possibleIntents = Object.keys(flows);
+        const intentDescriptions = possibleIntents.map(name => `${name}: ${flows[name].description}`).join('\n');
+
         const prompt = `
             Por favor, analiza el siguiente texto y determina la intención del usuario.
-            Las intenciones posibles son: ${promptConfig.intents.map(i => i.name).join(', ')}.
+            Las intenciones posibles son: ${possibleIntents.join(', ')}.
             Descripción de las intenciones:
-            ${promptConfig.intents.map(i => `${i.name}: ${i.description}`).join('\n')}
+            ${intentDescriptions}
             Basado en el texto, responde únicamente con un objeto JSON que contenga la clave "intent" y el valor de la intención detectada.
             Si no puedes determinar la intención, responde con un objeto JSON con la clave "intent" y el valor "unknown".
         `;
