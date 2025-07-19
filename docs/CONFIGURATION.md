@@ -177,3 +177,99 @@ Define las intenciones que el sistema puede detectar.
     -   `description`: Una descripción de lo que representa la intención, usada en el prompt de Gemini.
     -   `keywords` (Opcional): Palabras clave que pueden ayudar a la detección (actualmente no se usan en el prompt, pero son útiles para referencia).
 
+## 6. Guía Avanzada para Llamadas a API
+
+Esta sección detalla cómo configurar diferentes tipos de llamadas a API en `parameters_config.json`.
+
+### Caso 1: API `GET` con Parámetros en la URL
+
+Este es el caso más común para obtener datos.
+
+-   **`apis_config.json`**:
+    ```json
+    {
+        "name": "fetch_branches_api",
+        "endpoint": "http://127.0.0.1:3001/branches",
+        "method": "GET",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    En un `pre_ask_step` (o `post_ask_step`), se define la llamada. La clave `input_keys` mapea los parámetros que irán en la URL a los valores del contexto.
+    ```json
+    {
+        "tool": "api",
+        "name": "fetch_branches_api",
+        "input_keys": { "city_id": "context.city_id" },
+        "output_key": "branches_data"
+    }
+    ```
+    El orquestador construirá la URL de la siguiente manera: `http://127.0.0.1:3001/branches?city_id=123` (suponiendo que `context.city_id` es `123`).
+
+### Caso 2: API `POST` con Cuerpo (Body) JSON
+
+Se utiliza para enviar datos al servidor.
+
+-   **`apis_config.json`**:
+    ```json
+    {
+        "name": "create_appointment_api",
+        "endpoint": "http://127.0.0.1:3001/appointments",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    La configuración es idéntica al caso `GET`. El orquestador detecta que el método es `POST` y construye un cuerpo JSON en lugar de parámetros de URL.
+    ```json
+    {
+        "tool": "api",
+        "name": "create_appointment_api",
+        "input_keys": {
+            "patient_id": "context.id_number",
+            "branch_id": "context.branch_id",
+            "speciality_id": "context.speciality_id"
+        },
+        "output_key": "appointment_confirmation"
+    }
+    ```
+    El orquestador enviará una solicitud `POST` con un cuerpo como este:
+    ```json
+    {
+        "patient_id": "123456789",
+        "branch_id": 301,
+        "speciality_id": 405
+    }
+    ```
+
+### Caso 3: API `POST` con Parámetros en URL y Cuerpo (Híbrido)
+
+**Nota Importante**: El diseño actual del orquestador **no soporta este caso de forma nativa**. La implementación actual asume que los parámetros de `input_keys` van o a la URL (`GET`) o al cuerpo (`POST`), pero no a ambos.
+
+Para soportar este caso, sería necesario realizar una modificación en el orquestador.
+
+**Propuesta de Implementación Futura:**
+
+Se podría extender la sintaxis de `input_keys` para permitir una mayor especificidad:
+
+-   **Propuesta de `parameters_config.json`**:
+    ```json
+    {
+        "tool": "api",
+        "name": "update_appointment_api",
+        "input_keys": {
+            "url_params": {
+                "appointment_id": "context.appointment_id"
+            },
+            "body_params": {
+                "new_time": "context.new_date_time",
+                "reason": "context.update_reason"
+            }
+        },
+        "output_key": "update_confirmation"
+    }
+    ```
+-   **Modificación necesaria en `orchestrator.js`**:
+    La función `callApi` necesitaría ser actualizada para reconocer las claves `url_params` y `body_params`. Construiría la URL con `url_params` y el cuerpo de la solicitud con `body_params`.
+
+Esta mejora proporcionaría una flexibilidad mucho mayor para integrarse con diversas arquitecturas de API.

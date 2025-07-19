@@ -46,15 +46,66 @@ class ConversationOrchestrator {
         return vm.run(`(function(context) { ${scriptConfig.function_body} })(context)`);
     }
 
+    async handleApiAuth(apiConfig) {
+        if (!apiConfig.auth) {
+            return apiConfig.headers || {};
+        }
+
+        const authConfig = apiConfig.auth;
+        const tokenKey = `api_token:${apiConfig.name}`;
+        const tokenData = await redisClient.loadData(tokenKey);
+
+        if (tokenData && tokenData.expires_at > Date.now()) {
+            logger.debug(`Using cached API token for ${apiConfig.name}`, this.logContext);
+            return { ...apiConfig.headers, "Authorization": `Bearer ${tokenData.access_token}` };
+        }
+
+        logger.info(`Requesting new API token for ${apiConfig.name}`, this.logContext);
+        if (authConfig.type === 'oauth2_client_credentials') {
+            const tokenUrl = authConfig.token_url.replace("http://127.0.0.1:3001", `http://127.0.0.1:${process.env.MOCK_API_PORT || 3001}`);
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: authConfig.client_id,
+                    client_secret: authConfig.client_secret,
+                    scope: authConfig.scope
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to get API token for ${apiConfig.name}: ${response.statusText}`);
+            }
+
+            const newToken = await response.json();
+            const expires_at = Date.now() + (newToken.expires_in * 1000);
+            await redisClient.saveData(tokenKey, { ...newToken, expires_at }, newToken.expires_in);
+
+            logger.info(`Successfully obtained new API token for ${apiConfig.name}`, this.logContext);
+            return { ...apiConfig.headers, "Authorization": `Bearer ${newToken.access_token}` };
+        }
+
+        throw new Error(`Unsupported auth type: ${authConfig.type}`);
+    }
+
     async callApi(apiName, inputData) {
         const api = this.configs.apis.apis.find(a => a.name === apiName);
         if (!api) throw new Error(`API '${apiName}' not found.`);
+
+        const headers = await this.handleApiAuth(api);
+
         logger.debug(`Calling API: ${apiName} with input: ${JSON.stringify(inputData)}`, this.logContext);
         const mockApiPort = process.env.MOCK_API_PORT || 3001;
         let endpoint = api.endpoint.replace("http://127.0.0.1:3001", `http://127.0.0.1:${mockApiPort}`);
-        const options = { method: api.method, headers: api.headers };
-        if (api.method === "POST") options.body = JSON.stringify(inputData);
-        else if (api.method === "GET" && Object.keys(inputData).length > 0) endpoint += `?${new URLSearchParams(inputData)}`;
+
+        const options = { method: api.method, headers: headers };
+        if (api.method === "POST") {
+            options.body = JSON.stringify(inputData);
+        } else if (api.method === "GET" && Object.keys(inputData).length > 0) {
+            endpoint += `?${new URLSearchParams(inputData)}`;
+        }
+
         const response = await fetch(endpoint, options);
         if (!response.ok) {
             const errorBody = await response.text();
@@ -181,9 +232,29 @@ class ConversationOrchestrator {
                             Object.assign(this.state.context, ai_result.changed_params);
                         }
 
-                        if(ai_result.extracted_param && Object.keys(ai_result.extracted_param).length > 0) {
-                            Object.assign(this.state.collected_params, ai_result.extracted_param);
-                            Object.assign(this.state.context, ai_result.extracted_param);
+                        if (ai_result.extracted_param && Object.keys(ai_result.extracted_param).length > 0) {
+                            const paramName = Object.keys(ai_result.extracted_param)[0];
+                            const paramValue = ai_result.extracted_param[paramName];
+
+                            // If the extracted parameter is an object, it's a complex response (e.g., with id and name)
+                            if (typeof paramValue === 'object' && paramValue !== null && paramValue.id) {
+                                this.state.collected_params[`${paramName}_id`] = paramValue.id;
+                                this.state.collected_params[paramName] = paramValue.name;
+                                this.state.context[`${paramName}_id`] = paramValue.id;
+                                this.state.context[paramName] = paramValue.name;
+                            } else if (typeof paramValue === 'object' && paramValue !== null && !paramValue.id) {
+                                // AI returned a value but couldn't find a valid ID
+                                const unmatchedKey = Object.keys(paramValue)[0];
+                                const unmatchedValue = paramValue[unmatchedKey];
+                                this.state.context.unmatched_input = unmatchedValue;
+                                this.state.context.unmatched_parameter = this.state.current_parameter;
+                                logger.warn(`No valid ID found for ${this.state.current_parameter}. User provided: '${unmatchedValue}'`, this.logContext);
+
+                            } else {
+                                // Simple parameter (e.g., text input)
+                                this.state.collected_params[paramName] = paramValue;
+                                this.state.context[paramName] = paramValue;
+                            }
                         }
 
                     } else {
@@ -191,7 +262,11 @@ class ConversationOrchestrator {
                     }
                 }
             }
-            this.moveToNextParameter();
+
+            // Only move to the next parameter if the current one was successfully collected
+            if (!this.state.context.unmatched_input) {
+                this.moveToNextParameter();
+            }
         }
 
         if (!this.state.current_parameter) {
@@ -202,6 +277,30 @@ class ConversationOrchestrator {
     }
 
     async prepareNextQuestion() {
+        // Check if there was an unmatched input from the previous turn
+        if (this.state.context.unmatched_input) {
+            const errorMessage = `Lo siento, no he podido encontrar '${this.state.context.unmatched_input}' como una opción válida para ${this.state.context.unmatched_parameter}. Por favor, intenta de nuevo.`;
+
+            // Clear the unmatched input to avoid repeating the error
+            delete this.state.context.unmatched_input;
+            delete this.state.context.unmatched_parameter;
+
+            // Get the original question again
+            const nextParamConfig = this.configs.parameters[this.state.current_parameter];
+            let original_question = nextParamConfig.question;
+            const placeholders = original_question.match(/\{(\w+)\}/g);
+            if (placeholders) {
+                placeholders.forEach(placeholder => {
+                    const key = placeholder.slice(1, -1);
+                    original_question = original_question.replace(placeholder, this.state.context[key] || `[${key}]`);
+                });
+            }
+
+            await this.saveState();
+            return { next_prompt: `${errorMessage} ${original_question}`, collected_params: this.state.collected_params };
+        }
+
+
         const nextParamConfig = this.configs.parameters[this.state.current_parameter];
         if (nextParamConfig.pre_ask_steps) {
             for (const step of nextParamConfig.pre_ask_steps) {

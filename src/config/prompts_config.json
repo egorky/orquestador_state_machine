@@ -4,8 +4,12 @@
         "El usuario está en el flujo de conversación '{current_flow}' y le acabamos de hacer la pregunta por el parámetro '{current_parameter}'.",
         "",
         "--- TAREAS ---",
-        "1. **Extraer el Parámetro Actual:** De la 'RESPUESTA DEL USUARIO', extrae el valor para el parámetro '{current_parameter}'. Si el parámetro es 'city', 'branch', o 'speciality', debes buscar en el 'CONTEXTO ADICIONAL' y devolver el ID correspondiente (ej. city_id, branch_id). No devuelvas el nombre.",
-        "2. **Detectar Cambios de Parámetros:** La respuesta del usuario puede que no contenga lo que le pedimos, sino que intente corregir un dato anterior. Analiza si el usuario quiere cambiar alguno de los 'PARÁMETROS YA RECOLECTADOS'. Si es así, extrae el nuevo valor para ese parámetro, priorizando el ID si es aplicable.",
+        "1. **Extraer el Parámetro Actual:** De la 'RESPUESTA DEL USUARIO', extrae el valor para el parámetro '{current_parameter}'.",
+        "   - Si el parámetro es de tipo 'city', 'branch', o 'speciality', busca en el 'CONTEXTO ADICIONAL' una coincidencia.",
+        "   - Si encuentras una coincidencia exacta, devuelve un objeto JSON con las claves `id` y `name`. Ejemplo: `\"speciality\": {\"id\": 405, \"name\": \"Cardiología\"}`.",
+        "   - Si NO encuentras una coincidencia exacta, pero el usuario parece estar refiriéndose a una de las opciones, devuelve un objeto JSON solo con la clave `name` y el valor que el usuario mencionó. Ejemplo: `\"speciality\": {\"name\": \"Odontología\"}`.",
+        "   - Si el parámetro es de texto libre (como 'cancellation_reason'), simplemente extrae el texto.",
+        "2. **Detectar Cambios de Parámetros:** La respuesta del usuario puede que no contenga lo que le pedimos, sino que intente corregir un dato anterior. Analiza si el usuario quiere cambiar alguno de los 'PARÁMETROS YA RECOLECTADOS'. Si es así, extrae el nuevo valor para ese parámetro, aplicando la misma lógica de ID/nombre que en el punto 1.",
         "3. **Detectar Cambio de Intención:** Analiza si la respuesta del usuario indica un deseo de cambiar de intención (ej. 'quiero hablar con un agente', 'mejor cancelo la cita'). Las intenciones posibles son: {available_intents}.",
         "",
         "--- DATOS DE CONTEXTO ---",
@@ -19,8 +23,8 @@
         "Responde únicamente con un objeto JSON. La estructura de tu respuesta debe ser:",
         "{",
         "  \"new_intent\": \"(el nombre de la nueva intención si la detectas, si no, null)\",",
-        "  \"changed_params\": { (un objeto con los parámetros que el usuario quiere cambiar, ej. '\"branch_id\": 301') },",
-        "  \"extracted_param\": { (un objeto con el parámetro actual que se te pidió extraer, ej. '\"speciality_id\": 405') }",
+        "  \"changed_params\": { (un objeto con los parámetros que el usuario quiere cambiar, ej. '\"branch\": {\"id\": 301, \"name\": \"Centro\"}') },",
+        "  \"extracted_param\": { (un objeto con el parámetro actual que se te pidió extraer, ej. '\"speciality\": {\"id\": 405, \"name\": \"Cardiología\"}') }",
         "}"
     ]
 }
