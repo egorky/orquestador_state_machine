@@ -166,7 +166,7 @@ class ConversationOrchestrator {
                 break;
             case 'ai':
                 const promptTemplate = this.configs.prompts.main_prompt_template.join('\n');
-                const availableIntents = this.configs.intents.intents.map(i => i.name).join(', ');
+                const availableIntents = Object.keys(this.configs.flows.flows).join(', ');
                 const prompt = promptTemplate
                     .replace('{current_flow}', this.state.current_flow)
                     .replace('{current_parameter}', this.state.current_parameter)
