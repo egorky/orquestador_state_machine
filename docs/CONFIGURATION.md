@@ -1,73 +1,179 @@
 # Guía de Configuración
 
-Este documento explica cómo configurar el comportamiento del orquestador a través de los archivos JSON ubicados en la carpeta `src/config`.
+Este documento proporciona una explicación detallada de todos los archivos de configuración JSON que se encuentran en el directorio `src/config/`. Estos archivos le permiten definir y personalizar los flujos de conversación de forma declarativa, sin necesidad de modificar el código fuente del orquestador.
 
-## `flows_config.json`
+## 1. `flows_config.json`
 
-Este archivo define los diferentes flujos de conversación que el orquestador puede manejar.
+Define los diferentes flujos de conversación que el orquestador puede manejar.
 
--   `flows`: Un objeto que contiene todos los flujos disponibles.
-    -   `[flow_name]`: Cada clave es el nombre de un flujo (ej. `scheduling`).
-        -   `initial_parameter`: El nombre del primer parámetro a recolectar en este flujo.
-        -   `parameters`: Un objeto que define las transiciones entre parámetros.
-            -   `[parameter_name]`: La clave es el nombre de un parámetro.
-                -   `next_parameter`: El nombre del siguiente parámetro a recolectar. Si es `null`, el flujo para este camino ha terminado.
+-   **`flows`**: Un objeto donde cada clave es el nombre de un flujo (ej. "scheduling", "cancellation").
+    -   **`initial_parameter`**: El nombre del primer parámetro que se debe recolectar en este flujo.
+    -   **`parameters`**: Un objeto que define el orden secuencial de los parámetros. Cada clave es el nombre de un parámetro, y su valor contiene:
+        -   `next_parameter`: El nombre del siguiente parámetro en el flujo. Si es `null`, indica que es el último parámetro.
 
-## `parameters_config.json`
+**Ejemplo:**
 
-Este archivo define los parámetros que el orquestador puede recolectar.
+```json
+{
+    "flows": {
+        "scheduling": {
+            "initial_parameter": "id_number",
+            "parameters": {
+                "id_number": { "next_parameter": "city" },
+                "city": { "next_parameter": "branch" },
+                "branch": { "next_parameter": "speciality" },
+                "speciality": { "next_parameter": "date_time" },
+                "date_time": { "next_parameter": null }
+            }
+        }
+    }
+}
+```
 
--   `parameters`: Un array de objetos, donde cada objeto representa un parámetro.
-    -   `name`: El nombre único del parámetro.
-    -   `question`: La pregunta que se le hará al usuario para obtener este parámetro. Puede incluir placeholders como `{city_name}` que se reemplazarán con datos del contexto, o placeholders dinámicos como `{{CURRENT_DATETIME}}`.
+## 2. `parameters_config.json`
 
-## `apis_config.json`
+Este es el archivo de configuración central. Define los detalles de cada parámetro que puede ser recolectado.
 
-Este archivo define las APIs externas que el orquestador puede llamar.
+-   Cada clave de alto nivel es el **nombre del parámetro** (ej. "city").
+    -   **`question`**: La plantilla de la pregunta que se le hará al usuario. Puede incluir placeholders como `{variable}` que serán reemplazados por datos del contexto de la conversación.
+    -   **`pre_ask_steps`** (Opcional): Un array de acciones a ejecutar **antes** de hacer la pregunta. Útil para obtener datos necesarios para formular la pregunta (ej. obtener una lista de opciones de una API).
+    -   **`post_ask_steps`** (Opcional): Un array de acciones a ejecutar **después** de que el usuario ha respondido. Útil para procesar la respuesta del usuario (ej. extraer información con IA, validar, etc.).
 
--   `apis`: Un array de objetos, donde cada objeto representa una API.
-    -   `name`: El nombre único de la API.
+### Estructura de un Paso (`step`)
+
+Cada elemento en `pre_ask_steps` y `post_ask_steps` es un objeto "paso" con la siguiente estructura:
+
+-   **`tool`**: La herramienta a utilizar. Valores posibles: `"api"`, `"script"`, `"ai"`.
+-   **Propiedades adicionales**: Dependen de la herramienta seleccionada.
+
+#### Herramienta `api`
+
+-   **`name`**: El nombre de la API a llamar (debe coincidir con un nombre en `apis_config.json`).
+-   **`input_keys`** (Opcional): Un objeto que mapea los nombres de los parámetros de la API a sus valores, que se toman del contexto de la conversación.
+-   **`output_key`**: La clave bajo la cual se guardará la respuesta de la API en el contexto de la conversación.
+
+#### Herramienta `script`
+
+-   **`name`**: El nombre del script a ejecutar (debe coincidir con un nombre en `scripts_config.json`).
+-   **`input_key`**: La clave del contexto que se pasará como entrada al script.
+-   **`output_key`**: La clave bajo la cual se guardará el resultado del script en el contexto.
+
+#### Herramienta `ai`
+
+-   **`prompt`**: El prompt que se enviará a Gemini. El orquestador añadirá automáticamente la respuesta del usuario y el contexto actual.
+
+**Ejemplo (`city`):**
+
+```json
+"city": {
+    "question": "¿En qué ciudad desea agendar su cita? Tenemos disponibles en: {cities_list}",
+    "pre_ask_steps": [
+        {
+            "tool": "api",
+            "name": "fetch_cities_api",
+            "output_key": "cities_data"
+        },
+        {
+            "tool": "script",
+            "name": "format_cities_list",
+            "input_key": "cities_data",
+            "output_key": "cities_list"
+        }
+    ],
+    "post_ask_steps": [
+        {
+            "tool": "ai",
+            "prompt": "De la respuesta del usuario, y de la lista de ciudades en el contexto, extrae el ID de la ciudad. Responde en un JSON con la clave 'city_id'."
+        }
+    ]
+}
+```
+
+## 3. `apis_config.json`
+
+Define los detalles de las APIs externas que el orquestador puede invocar.
+
+-   **`apis`**: Un array de objetos, donde cada objeto representa una API.
+    -   `name`: Un nombre único para la API.
     -   `endpoint`: La URL del endpoint de la API.
-    -   `method`: El método HTTP a utilizar (`GET`, `POST`, etc.).
-    -   `headers`: Un objeto con las cabeceras a enviar en la petición.
+    -   `method`: El método HTTP (`GET`, `POST`, etc.).
+    -   `headers`: Un objeto con las cabeceras HTTP a enviar.
 
-## `scripts_config.json`
+## 4. `scripts_config.json`
 
-Este archivo define pequeños scripts de JavaScript que pueden ser ejecutados por el orquestador.
+Define pequeños fragmentos de código JavaScript que pueden ser ejecutados por el orquestador para realizar transformaciones de datos, cálculos o lógica condicional simple.
 
--   `scripts`: Un array de objetos, donde cada objeto representa un script.
-    -   `name`: El nombre único del script.
-    -   `function_body`: El cuerpo de la función de JavaScript en formato de string.
+### Estructura
 
-## `execution_order_config.json`
+-   **`scripts`**: Un array de objetos, donde cada objeto representa un script.
+    -   `name`: Un nombre único para el script.
+    -   `function_body`: Una cadena de texto que contiene el cuerpo de una función JavaScript.
 
-Este archivo es crucial, ya que define la secuencia de pasos a seguir para cada parámetro.
+### Contexto de Ejecución
 
--   `execution_sequences`: Un array de objetos, donde cada objeto define la secuencia para un parámetro.
-    -   `parameter`: El nombre del parámetro al que se aplica esta secuencia.
-    -   `steps`: Un array de objetos, donde cada objeto es un paso a ejecutar en orden.
-        -   `tool`: La herramienta a utilizar. Puede ser `api_call`, `ai_extract`, `validate`, `decision`, o `script`.
-        -   `api` (si `tool` es `api_call`): El nombre de la API a llamar.
-        -   `script` (si `tool` es `script`): El nombre del script a ejecutar.
-        -   `input_keys` (si `tool` es `api_call` o `script`): Un array de claves del contexto que se enviarán como parámetros a la API o script.
-        -   `output_key` (si `tool` es `api_call` o `script`): La clave bajo la cual se guardará la respuesta de la API o script en el contexto.
-        -   `prompt` (si `tool` es `ai_extract`): El prompt que se enviará a la IA.
-        -   `validation` (si `tool` es `validate`): El nombre del parámetro de validación a utilizar.
-        -   `on` (si `tool` es `decision`): La clave del contexto sobre la cual se tomará la decisión.
-        -   `cases` (si `tool` es `decision`): Un array de casos.
-            -   `equals`: El valor a comparar.
-            -   `next_parameter`: El siguiente parámetro si el caso coincide.
-        -   `default` (si `tool` es `decision`): El siguiente parámetro si ningún caso coincide.
+-   Cada script se ejecuta en un entorno de sandbox seguro (usando `vm2`).
+-   El script tiene acceso a un objeto global llamado `context`, que es una referencia directa al objeto `state.context` de la conversación actual.
+-   Esto significa que puedes leer cualquier dato que se haya guardado previamente en el contexto (desde llamadas a API, extracciones de IA, etc.) y también puedes modificarlo, aunque se recomienda que los scripts devuelvan valores y que el resultado se asigne a una nueva clave del contexto mediante el `output_key` en el paso del `parameters_config.json`.
+-   La última expresión evaluada en el `function_body` es el valor de retorno del script.
 
-## `validations_config.json`
+### Ejemplos de Uso
 
-Este archivo define las reglas de validación para los datos extraídos.
+#### Ejemplo 1: Formatear una Lista para Presentación
 
--   `validations`: Un array de objetos, donde cada objeto define las reglas para un parámetro.
-    -   `parameter`: El nombre del parámetro al que se aplican estas reglas.
-    -   `rules`: Un array de objetos, donde cada objeto es una regla de validación.
-        -   `type`: El tipo de validación (`regex`, `in_list`, `in_list_simple`).
-        -   `pattern` (si `type` es `regex`): La expresión regular.
-        -   `source` (si `type` es `in_list` o `in_list_simple`): La clave del contexto con la lista de valores válidos.
-        -   `key` (si `type` es `in_list`): La clave del objeto a comparar en la lista.
-        -   `error_message`: El mensaje de error.
+Útil para tomar un array de objetos de una API y convertirlo en una cadena legible para el usuario.
+
+-   **`function_body`**:
+    ```javascript
+    "return context.cities_data.map(c => c.city_name).join(', ');"
+    ```
+-   **Uso**: En `parameters_config.json`, un `pre_ask_step` para `city` podría usar este script para generar la lista de ciudades a mostrar en la pregunta.
+
+#### Ejemplo 2: Encontrar un Valor Específico en un Array
+
+Después de que la IA extrae un ID, este script puede encontrar el objeto completo correspondiente y extraer un dato específico (como el nombre).
+
+-   **`function_body`**:
+    ```javascript
+    "const city = context.cities_data.find(c => c.city_id === context.city_id); return city ? city.city_name : '';"
+    ```
+-   **Uso**: En `parameters_config.json`, un `post_ask_step` para `city` lo usaría para guardar `city_name` en el contexto, permitiendo que la siguiente pregunta sea personalizada (ej. "Perfecto. ¿En qué sucursal de **Quito**...?").
+
+#### Ejemplo 3: Realizar un Cálculo Simple
+
+Puedes realizar cálculos basados en los datos recolectados.
+
+-   **`function_body`**:
+    ```javascript
+    "const subtotal = context.product_price * context.quantity; return subtotal;"
+    ```
+-   **Uso**: Para un flujo de e-commerce, después de recolectar `product_price` y `quantity`, un script podría calcular el `subtotal` y guardarlo en el contexto.
+
+#### Ejemplo 4: Lógica Condicional Simple
+
+Puedes devolver diferentes valores basados en una condición.
+
+-   **`function_body`**:
+    ```javascript
+    "const birth_year = parseInt(context.id_number.substring(0, 4)); const current_year = new Date().getFullYear(); const age = current_year - birth_year; return age < 18 ? 'menor_de_edad' : 'mayor_de_edad';"
+    ```
+-   **Uso**: Podría usarse para determinar si un usuario es menor de edad y dirigir el flujo de la conversación en consecuencia (aunque la lógica de ramificación más compleja debería manejarse en el orquestador).
+
+#### Ejemplo 5: Transformación de Datos Compleja
+
+Combinar varios datos del contexto para crear una nueva estructura.
+
+-   **`function_body`**:
+    ```javascript
+    "const userProfile = { nombre_completo: `${context.nombres} ${context.apellidos}`, telefono: context.numero_telefono, ciudad: context.ciudad_residencia }; return JSON.stringify(userProfile);"
+    ```
+-   **Uso**: Al final de un flujo de recolección de datos, un script podría ensamblar un objeto de perfil de usuario y prepararlo para ser enviado a una API.
+
+## 5. `intents_config.json`
+
+Define las intenciones que el sistema puede detectar.
+
+-   **`intents`**: Un array de objetos, donde cada objeto representa una intención.
+    -   `name`: Un nombre único para la intención.
+    -   `description`: Una descripción de lo que representa la intención, usada en el prompt de Gemini.
+    -   `keywords` (Opcional): Palabras clave que pueden ayudar a la detección (actualmente no se usan en el prompt, pero son útiles para referencia).
+

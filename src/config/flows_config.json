@@ -33,7 +33,8 @@
         },
         "talk_to_agent": {
             "initial_parameter": null,
-            "parameters": {}
+            "parameters": {},
+            "final_message": "Entendido. Le transferiré con un agente humano."
         }
     }
 }

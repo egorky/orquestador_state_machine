@@ -1,12 +1,24 @@
 {
     "scripts": [
         {
-            "name": "format_specialities_list",
-            "function_body": "return specialities.map(s => s.speciality_name).join(', ');"
+            "name": "format_cities_list",
+            "function_body": "return context.cities_data.map(c => c.city_name).join(', ');"
         },
         {
-            "name": "check_if_user_is_minor",
-            "function_body": "const birth_year = parseInt(id_number.substring(0, 4)); const current_year = new Date().getFullYear(); return (current_year - birth_year) < 18;"
+            "name": "format_branches_list",
+            "function_body": "return context.branches_data.map(b => b.branch_name).join(', ');"
+        },
+        {
+            "name": "format_specialities_list",
+            "function_body": "return context.specialities_data.map(s => s.speciality_name).join(', ');"
+        },
+        {
+            "name": "format_available_times_list",
+            "function_body": "return context.available_times_data.join(', ');"
+        },
+        {
+            "name": "find_city_name",
+            "function_body": "const city = context.cities_data.find(c => c.city_id === context.city_id); return city ? city.city_name : '';"
         }
     ]
 }

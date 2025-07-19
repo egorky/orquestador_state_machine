@@ -1,57 +1,49 @@
 {
-    "parameters": [
-        {
-            "name": "id_number",
-            "question": "Por favor, deme su número de identificación.",
-            "dependencies": []
-        },
-        {
-            "name": "city",
-            "question": "¿En qué ciudad desea agendar su cita?",
-            "dependencies": ["id_number"],
-            "lookup": {
-                "from_api": "fetch_cities_api",
-                "in": "cities",
-                "match": "city_name",
-                "output": {
-                    "city_id": "city_id"
-                }
-            }
-        },
-        {
-            "name": "branch",
-            "question": "¿En qué sucursal de {city} desea su cita?",
-            "dependencies": ["city"],
-            "lookup": {
-                "from_context": "branches",
-                "in": "branches",
-                "match": "branch_name",
-                "output": {
-                    "branch_id": "branch_id"
-                }
-            }
-        },
-        {
-            "name": "speciality",
-            "question": "¿Para qué especialidad desea su cita?",
-            "dependencies": ["branch"],
-            "lookup": {
-                "from_context": "specialities",
-                "in": "specialities",
-                "match": "speciality_name",
-                "output": {
-                    "speciality_id": "speciality_id"
-                }
-            }
-        },
-        {
-            "name": "date_time",
-            "question": "Por favor, elija una fecha y hora de las siguientes opciones: {available_times}.",
-            "dependencies": ["speciality"]
-        }
-    ],
-    "final_action": {
-        "api": "create_appointment_api",
-        "required_parameters": ["id_number", "city_id", "branch_id", "speciality_id", "date_time"]
+    "id_number": {
+        "question": "Por favor, deme su número de identificación.",
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "city": {
+        "question": "¿En qué ciudad desea agendar su cita? Tenemos disponibles en: {cities_list}",
+        "pre_ask_steps": [
+            { "tool": "api", "name": "fetch_cities_api", "output_key": "cities_data" },
+            { "tool": "script", "name": "format_cities_list", "output_key": "cities_list" }
+        ],
+        "post_ask_steps": [
+            { "tool": "ai" },
+            { "tool": "script", "name": "find_city_name", "output_key": "city_name" }
+        ]
+    },
+    "branch": {
+        "question": "Perfecto. ¿En cuál de nuestras sucursales en {city_name} desea su cita? Puede escoger entre: {branches_list}",
+        "pre_ask_steps": [
+            { "tool": "api", "name": "fetch_branches_api", "input_keys": { "city_id": "context.city_id" }, "output_key": "branches_data" },
+            { "tool": "script", "name": "format_branches_list", "output_key": "branches_list" }
+        ],
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "speciality": {
+        "question": "Excelente. ¿Para qué especialidad necesita la cita? En esta sucursal tenemos: {specialities_list}",
+        "pre_ask_steps": [
+            { "tool": "api", "name": "fetch_specialities_api", "input_keys": { "branch_id": "context.branch_id" }, "output_key": "specialities_data" },
+            { "tool": "script", "name": "format_specialities_list", "output_key": "specialities_list" }
+        ],
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "date_time": {
+        "question": "Entendido. ¿En qué fecha y hora desea la cita? Tenemos los siguientes turnos disponibles: {available_times_list}",
+        "pre_ask_steps": [
+            { "tool": "api", "name": "fetch_available_times_api", "input_keys": { "speciality_id": "context.speciality_id" }, "output_key": "available_times_data" },
+            { "tool": "script", "name": "format_available_times_list", "output_key": "available_times_list" }
+        ],
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "appointment_id": {
+        "question": "Entendido. Por favor, deme el número de identificación de la cita que desea cancelar.",
+        "post_ask_steps": [{ "tool": "ai" }]
+    },
+    "cancellation_reason": {
+        "question": "¿Cuál es el motivo de la cancelación?",
+        "post_ask_steps": [{ "tool": "ai" }]
     }
 }

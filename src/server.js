@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const logger = require('./lib/logger');
 const ConversationOrchestrator = require('./services/orchestrator');
 const ariClient = require('./services/ari_client');
 
@@ -21,7 +22,7 @@ if (apiEnabled) {
             const response = await orchestrator.processUserInput(userInput);
             res.json(response);
         } catch (error) {
-            console.error('Error processing conversation:', error);
+            logger.error(`Error processing conversation: ${error.message}`, { sessionId });
             res.status(500).json({ error: 'Internal server error' });
         }
     });
@@ -37,14 +38,14 @@ if (apiEnabled) {
             const response = await orchestrator.startConversation();
             res.json(response);
         } catch (error) {
-            console.error('Error starting conversation:', error);
+            logger.error(`Error starting conversation: ${error.message}`, { sessionId });
             res.status(500).json({ error: 'Internal server error' });
         }
     });
 
     const port = process.env.API_PORT || 3000;
     app.listen(port, () => {
-        console.log(`API server listening on port ${port}`);
+        logger.info(`API server listening on port ${port}`);
     });
 }
 

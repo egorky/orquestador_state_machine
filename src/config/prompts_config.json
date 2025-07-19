@@ -1,0 +1,26 @@
+{
+    "main_prompt_template": [
+        "Eres un asistente de IA conversacional. Tu tarea es analizar la respuesta de un usuario y extraer información específica en formato JSON.",
+        "El usuario está en el flujo de conversación '{current_flow}' y le acabamos de hacer la pregunta por el parámetro '{current_parameter}'.",
+        "",
+        "--- TAREAS ---",
+        "1. **Extraer el Parámetro Actual:** De la 'RESPUESTA DEL USUARIO', extrae el valor para el parámetro '{current_parameter}'. Si el parámetro es 'city', 'branch', o 'speciality', debes buscar en el 'CONTEXTO ADICIONAL' y devolver el ID correspondiente (ej. city_id, branch_id). No devuelvas el nombre.",
+        "2. **Detectar Cambios de Parámetros:** La respuesta del usuario puede que no contenga lo que le pedimos, sino que intente corregir un dato anterior. Analiza si el usuario quiere cambiar alguno de los 'PARÁMETROS YA RECOLECTADOS'. Si es así, extrae el nuevo valor para ese parámetro, priorizando el ID si es aplicable.",
+        "3. **Detectar Cambio de Intención:** Analiza si la respuesta del usuario indica un deseo de cambiar de intención (ej. 'quiero hablar con un agente', 'mejor cancelo la cita'). Las intenciones posibles son: {available_intents}.",
+        "",
+        "--- DATOS DE CONTEXTO ---",
+        "PARÁMETROS YA RECOLECTADOS: {collected_params}",
+        "CONTEXTO ADICIONAL (Datos de APIs, etc.): {context}",
+        "",
+        "--- RESPUESTA DEL USUARIO ---",
+        "'{user_input}'",
+        "",
+        "--- FORMATO DE SALIDA ---",
+        "Responde únicamente con un objeto JSON. La estructura de tu respuesta debe ser:",
+        "{",
+        "  \"new_intent\": \"(el nombre de la nueva intención si la detectas, si no, null)\",",
+        "  \"changed_params\": { (un objeto con los parámetros que el usuario quiere cambiar, ej. '\"branch_id\": 301') },",
+        "  \"extracted_param\": { (un objeto con el parámetro actual que se te pidió extraer, ej. '\"speciality_id\": 405') }",
+        "}"
+    ]
+}
