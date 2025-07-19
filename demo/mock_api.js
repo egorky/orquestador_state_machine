@@ -107,5 +107,15 @@ app.post('/appointments', (req, res) => {
     res.status(201).json({ status: "success", appointmentId: uuidv4() });
 });
 
+// Mock OAuth2 token endpoint
+app.post('/oauth/token', (req, res) => {
+    // In a real scenario, you would validate client_id and client_secret
+    res.status(200).json({
+        access_token: "mock_access_token_" + uuidv4(),
+        token_type: "Bearer",
+        expires_in: 3600 // 1 hour
+    });
+});
+
 const port = process.env.MOCK_API_PORT || 3001;
 app.listen(port, () => console.log(`Mock API running on http://localhost:${port}`));
