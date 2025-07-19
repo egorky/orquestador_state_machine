@@ -217,7 +217,10 @@ class ConversationOrchestrator {
                 this.state.context['intent'] = intent;
                 if (intent === 'talk_to_agent') {
                     await this.saveState();
-                    return { final_message: "Entendido. Le transferiré con un agente humano." };
+                    return {
+                        final_message: "Entendido. Le transferiré con un agente humano.",
+                        collected_params: this.state.collected_params
+                    };
                 }
                 this.state.current_parameter = this.configs.flows.flows[intent].initial_parameter;
             } else {
@@ -245,7 +248,10 @@ class ConversationOrchestrator {
                             if (!newFlow.initial_parameter) {
                                 // This is a single-shot intent like "talk_to_agent"
                                 // We can define a final message in the flow config itself
-                                return { final_message: newFlow.final_message || "Entendido." };
+                                return {
+                                    final_message: newFlow.final_message || "Entendido.",
+                                    collected_params: this.state.collected_params
+                                };
                             }
 
                             this.moveToNextParameter();
