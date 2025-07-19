@@ -298,7 +298,10 @@ class ConversationOrchestrator {
 
         if (!this.state.current_parameter) {
             await this.saveState();
-            return { final_message: "Todos los parámetros han sido recolectados. Gracias." };
+            return {
+                final_message: "Todos los parámetros han sido recolectados. Gracias.",
+                collected_params: this.state.collected_params
+            };
         }
         return this.prepareNextQuestion();
     }
