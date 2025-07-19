@@ -244,22 +244,27 @@ Se utiliza para enviar datos al servidor.
 
 ### Caso 3: API `POST` con Parámetros en URL y Cuerpo (Híbrido)
 
-**Nota Importante**: El diseño actual del orquestador **no soporta este caso de forma nativa**. La implementación actual asume que los parámetros de `input_keys` van o a la URL (`GET`) o al cuerpo (`POST`), pero no a ambos.
+El sistema soporta llamadas a API que requieren parámetros tanto en la URL como en el cuerpo de la solicitud. Para ello, se utiliza una estructura específica en `input_keys`.
 
-Para soportar este caso, sería necesario realizar una modificación en el orquestador.
-
-**Propuesta de Implementación Futura:**
-
-Se podría extender la sintaxis de `input_keys` para permitir una mayor especificidad:
-
--   **Propuesta de `parameters_config.json`**:
+-   **`apis_config.json`**:
+    No se necesita ninguna configuración especial. Se define como una API `POST` normal.
+    ```json
+    {
+        "name": "update_appointment_details",
+        "endpoint": "http://127.0.0.1:3001/appointments",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    Dentro de `input_keys`, se deben crear dos objetos: `url_params` para los parámetros de la URL y `body_params` para los del cuerpo.
     ```json
     {
         "tool": "api",
-        "name": "update_appointment_api",
+        "name": "update_appointment_details",
         "input_keys": {
             "url_params": {
-                "appointment_id": "context.appointment_id"
+                "appointment_id": "context.appointment_to_update_id"
             },
             "body_params": {
                 "new_time": "context.new_date_time",
@@ -269,7 +274,4 @@ Se podría extender la sintaxis de `input_keys` para permitir una mayor especifi
         "output_key": "update_confirmation"
     }
     ```
--   **Modificación necesaria en `orchestrator.js`**:
-    La función `callApi` necesitaría ser actualizada para reconocer las claves `url_params` y `body_params`. Construiría la URL con `url_params` y el cuerpo de la solicitud con `body_params`.
-
-Esta mejora proporcionaría una flexibilidad mucho mayor para integrarse con diversas arquitecturas de API.
+    El orquestador construirá la URL como `http://.../appointments?appointment_id=456` y enviará una solicitud `POST` con un cuerpo JSON que contiene `new_time` y `reason`.

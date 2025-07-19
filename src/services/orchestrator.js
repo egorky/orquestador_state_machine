@@ -89,21 +89,23 @@ class ConversationOrchestrator {
         throw new Error(`Unsupported auth type: ${authConfig.type}`);
     }
 
-    async callApi(apiName, inputData) {
+    async callApi(apiName, urlParams, bodyParams) {
         const api = this.configs.apis.apis.find(a => a.name === apiName);
         if (!api) throw new Error(`API '${apiName}' not found.`);
 
         const headers = await this.handleApiAuth(api);
 
-        logger.debug(`Calling API: ${apiName} with input: ${JSON.stringify(inputData)}`, this.logContext);
+        logger.debug(`Calling API: ${apiName} with URL params: ${JSON.stringify(urlParams)} and body: ${JSON.stringify(bodyParams)}`, this.logContext);
         const mockApiPort = process.env.MOCK_API_PORT || 3001;
         let endpoint = api.endpoint.replace("http://127.0.0.1:3001", `http://127.0.0.1:${mockApiPort}`);
 
+        if (urlParams && Object.keys(urlParams).length > 0) {
+            endpoint += `?${new URLSearchParams(urlParams)}`;
+        }
+
         const options = { method: api.method, headers: headers };
-        if (api.method === "POST") {
-            options.body = JSON.stringify(inputData);
-        } else if (api.method === "GET" && Object.keys(inputData).length > 0) {
-            endpoint += `?${new URLSearchParams(inputData)}`;
+        if (bodyParams && Object.keys(bodyParams).length > 0 && ['POST', 'PUT', 'PATCH'].includes(api.method)) {
+            options.body = JSON.stringify(bodyParams);
         }
 
         const response = await fetch(endpoint, options);
@@ -119,14 +121,40 @@ class ConversationOrchestrator {
     async executeStep(step, userInput) {
         switch (step.tool) {
             case 'api':
-                const apiInputs = {};
+                let urlParams = {};
+                let bodyParams = {};
+
                 if (step.input_keys) {
-                    for (const key in step.input_keys) {
-                        const contextKey = step.input_keys[key].split('.')[1];
-                        apiInputs[key] = this.state.context[contextKey];
+                    // New structure: { url_params: {...}, body_params: {...} }
+                    if (step.input_keys.url_params || step.input_keys.body_params) {
+                        if (step.input_keys.url_params) {
+                            for (const key in step.input_keys.url_params) {
+                                const contextKey = step.input_keys.url_params[key].split('.')[1];
+                                urlParams[key] = this.state.context[contextKey];
+                            }
+                        }
+                        if (step.input_keys.body_params) {
+                            for (const key in step.input_keys.body_params) {
+                                const contextKey = step.input_keys.body_params[key].split('.')[1];
+                                bodyParams[key] = this.state.context[contextKey];
+                            }
+                        }
+                    } else { // Legacy structure for backward compatibility
+                        const tempParams = {};
+                        for (const key in step.input_keys) {
+                            const contextKey = step.input_keys[key].split('.')[1];
+                            tempParams[key] = this.state.context[contextKey];
+                        }
+
+                        const api = this.configs.apis.apis.find(a => a.name === step.name);
+                        if (api && ['POST', 'PUT', 'PATCH'].includes(api.method)) {
+                            bodyParams = tempParams;
+                        } else {
+                            urlParams = tempParams;
+                        }
                     }
                 }
-                const apiResult = await this.callApi(step.name, apiInputs);
+                const apiResult = await this.callApi(step.name, urlParams, bodyParams);
                 if (step.output_key) this.state.context[step.output_key] = apiResult;
                 break;
             case 'script':
