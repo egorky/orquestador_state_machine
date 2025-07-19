@@ -215,14 +215,17 @@ class ConversationOrchestrator {
                 this.state.status = 'COLLECTING_PARAMS';
                 this.state.collected_params['intent'] = intent;
                 this.state.context['intent'] = intent;
-                if (intent === 'talk_to_agent') {
+
+                const newFlow = this.configs.flows.flows[intent];
+                if (!newFlow.initial_parameter) {
                     await this.saveState();
                     return {
-                        final_message: "Entendido. Le transferiré con un agente humano.",
+                        final_message: newFlow.final_message || "Entendido.",
                         collected_params: this.state.collected_params
                     };
                 }
-                this.state.current_parameter = this.configs.flows.flows[intent].initial_parameter;
+
+                this.state.current_parameter = newFlow.initial_parameter;
             } else {
                  await this.saveState();
                  return { next_prompt: "No he podido entender tu solicitud. Por favor, intenta de nuevo." };
