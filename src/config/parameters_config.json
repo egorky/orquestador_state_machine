@@ -36,7 +36,12 @@
             { "tool": "api", "name": "fetch_available_times_api", "input_keys": { "speciality_id": "context.speciality_id" }, "output_key": "available_times_data" },
             { "tool": "script", "name": "format_available_times_list", "output_key": "available_times_list" }
         ],
-        "post_ask_steps": [{ "tool": "ai" }]
+        "post_ask_steps": [
+            {
+                "tool": "ai",
+                "prompt_id": "date_time_extraction"
+            }
+        ]
     },
     "appointment_id": {
         "question": "Entendido. Por favor, deme el número de identificación de la cita que desea cancelar.",

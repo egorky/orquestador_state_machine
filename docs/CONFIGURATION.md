@@ -60,7 +60,8 @@ Cada elemento en `pre_ask_steps` y `post_ask_steps` es un objeto "paso" con la s
 
 #### Herramienta `ai`
 
--   **`prompt`**: El prompt que se enviará a Gemini. El orquestador añadirá automáticamente la respuesta del usuario y el contexto actual.
+-   **`prompt_id`** (Opcional): El ID de la plantilla de prompt a utilizar de `prompts_config.json`. Si se omite, se usará la plantilla con ID `"default"`.
+-   **`prompt_append`** (Opcional): Una cadena de texto o un array de cadenas que se añadirá al final de la plantilla de prompt seleccionada. Útil para añadir instrucciones específicas para un paso concreto.
 
 **Ejemplo (`city`):**
 
@@ -177,3 +178,121 @@ Define las intenciones que el sistema puede detectar.
     -   `description`: Una descripción de lo que representa la intención, usada en el prompt de Gemini.
     -   `keywords` (Opcional): Palabras clave que pueden ayudar a la detección (actualmente no se usan en el prompt, pero son útiles para referencia).
 
+## 6. `prompts_config.json`
+
+Define las diferentes plantillas de prompts que la herramienta `ai` puede utilizar.
+
+-   **`prompts`**: Un objeto donde cada clave es un ID de prompt único (ej. "default", "date_time_extraction").
+    -   El valor de cada clave es un array de cadenas de texto, que juntas forman la plantilla del prompt.
+
+### Placeholders Automáticos
+
+Dentro de cualquier plantilla de prompt, puedes usar los siguientes placeholders, que el orquestador reemplazará automáticamente antes de enviar el prompt a la IA:
+
+-   `{current_date}`: La fecha actual en formato `YYYY-MM-DD`.
+-   `{current_time}`: La hora actual en formato `HH:MM:SS`.
+-   `{current_flow}`: El nombre del flujo de conversación actual.
+-   `{current_parameter}`: El nombre del parámetro que se está pidiendo actualmente.
+-   `{available_intents}`: Una lista de todas las intenciones posibles, separadas por comas.
+-   `{collected_params}`: Un objeto JSON con todos los parámetros que ya han sido recolectados.
+-   `{context}`: Un objeto JSON con todo el contexto de la conversación (incluyendo datos de API, resultados de scripts, etc.).
+-   `{user_input}`: La respuesta literal que dio el usuario en el último turno.
+
+## 6. Guía Avanzada para Llamadas a API
+
+Esta sección detalla cómo configurar diferentes tipos de llamadas a API en `parameters_config.json`.
+
+### Caso 1: API `GET` con Parámetros en la URL
+
+Este es el caso más común para obtener datos.
+
+-   **`apis_config.json`**:
+    ```json
+    {
+        "name": "fetch_branches_api",
+        "endpoint": "http://127.0.0.1:3001/branches",
+        "method": "GET",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    En un `pre_ask_step` (o `post_ask_step`), se define la llamada. La clave `input_keys` mapea los parámetros que irán en la URL a los valores del contexto.
+    ```json
+    {
+        "tool": "api",
+        "name": "fetch_branches_api",
+        "input_keys": { "city_id": "context.city_id" },
+        "output_key": "branches_data"
+    }
+    ```
+    El orquestador construirá la URL de la siguiente manera: `http://127.0.0.1:3001/branches?city_id=123` (suponiendo que `context.city_id` es `123`).
+
+### Caso 2: API `POST` con Cuerpo (Body) JSON
+
+Se utiliza para enviar datos al servidor.
+
+-   **`apis_config.json`**:
+    ```json
+    {
+        "name": "create_appointment_api",
+        "endpoint": "http://127.0.0.1:3001/appointments",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    La configuración es idéntica al caso `GET`. El orquestador detecta que el método es `POST` y construye un cuerpo JSON en lugar de parámetros de URL.
+    ```json
+    {
+        "tool": "api",
+        "name": "create_appointment_api",
+        "input_keys": {
+            "patient_id": "context.id_number",
+            "branch_id": "context.branch_id",
+            "speciality_id": "context.speciality_id"
+        },
+        "output_key": "appointment_confirmation"
+    }
+    ```
+    El orquestador enviará una solicitud `POST` con un cuerpo como este:
+    ```json
+    {
+        "patient_id": "123456789",
+        "branch_id": 301,
+        "speciality_id": 405
+    }
+    ```
+
+### Caso 3: API `POST` con Parámetros en URL y Cuerpo (Híbrido)
+
+El sistema soporta llamadas a API que requieren parámetros tanto en la URL como en el cuerpo de la solicitud. Para ello, se utiliza una estructura específica en `input_keys`.
+
+-   **`apis_config.json`**:
+    No se necesita ninguna configuración especial. Se define como una API `POST` normal.
+    ```json
+    {
+        "name": "update_appointment_details",
+        "endpoint": "http://127.0.0.1:3001/appointments",
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" }
+    }
+    ```
+-   **`parameters_config.json`**:
+    Dentro de `input_keys`, se deben crear dos objetos: `url_params` para los parámetros de la URL y `body_params` para los del cuerpo.
+    ```json
+    {
+        "tool": "api",
+        "name": "update_appointment_details",
+        "input_keys": {
+            "url_params": {
+                "appointment_id": "context.appointment_to_update_id"
+            },
+            "body_params": {
+                "new_time": "context.new_date_time",
+                "reason": "context.update_reason"
+            }
+        },
+        "output_key": "update_confirmation"
+    }
+    ```
+    El orquestador construirá la URL como `http://.../appointments?appointment_id=456` y enviará una solicitud `POST` con un cuerpo JSON que contiene `new_time` y `reason`.

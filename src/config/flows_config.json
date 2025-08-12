@@ -1,6 +1,7 @@
 {
     "flows": {
         "scheduling": {
+            "description": "El usuario quiere programar una nueva cita.",
             "initial_parameter": "id_number",
             "parameters": {
                 "id_number": {
@@ -21,6 +22,7 @@
             }
         },
         "cancellation": {
+            "description": "El usuario quiere cancelar una cita existente.",
             "initial_parameter": "appointment_id",
             "parameters": {
                 "appointment_id": {
@@ -32,6 +34,7 @@
             }
         },
         "talk_to_agent": {
+            "description": "El usuario quiere hablar con un agente humano.",
             "initial_parameter": null,
             "parameters": {},
             "final_message": "Entendido. Le transferiré con un agente humano."
